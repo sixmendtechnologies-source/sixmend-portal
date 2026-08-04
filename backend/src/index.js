@@ -2,6 +2,9 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import bcrypt from "bcryptjs";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import pool from "./db/index.js";
 import authRoutes from "./routes/auth.js";
 import dashboardRoutes from "./routes/dashboard.js";
@@ -10,6 +13,8 @@ import enquiryRoutes from "./routes/enquiries.js";
 import expenseRoutes from "./routes/expenses.js";
 import clientDetailRoutes from "./routes/client-detail.js";
 import publicRoutes from "./routes/public.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -26,6 +31,16 @@ app.use("/api/clients/:id", clientDetailRoutes);
 app.use("/api/public", publicRoutes);
 
 app.get("/api/health", (_, res) => res.json({ status: "ok" }));
+
+async function runMigrations() {
+  try {
+    const sql = readFileSync(join(__dirname, "db/migrate.sql"), "utf8");
+    await pool.query(sql);
+    console.log("Migrations applied");
+  } catch (err) {
+    console.error("Migration error:", err.message);
+  }
+}
 
 async function seedAdmin() {
   try {
@@ -45,5 +60,6 @@ async function seedAdmin() {
 
 app.listen(PORT, async () => {
   console.log(`Backend running on port ${PORT}`);
+  await runMigrations();
   await seedAdmin();
 });
