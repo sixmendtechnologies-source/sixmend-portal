@@ -170,23 +170,23 @@ jobs:
             echo "prev_fe_image=" >> $GITHUB_OUTPUT
           fi
 
-      - name: Ensure deploy directory exists
+      - name: Ensure deploy directories exist
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          script: mkdir -p ${{ env.DEPLOY_DIR }}
+          script: mkdir -p ${{ env.DEPLOY_DIR }}/backend/src/db
 
-      - name: Copy docker-compose to server
+      - name: Copy files to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          source: docker-compose.prod.yml
+          source: docker-compose.prod.yml,backend/src/db/schema.sql
           target: ${{ env.DEPLOY_DIR }}
 
       - name: Deploy via SSH with rollback
@@ -218,27 +218,39 @@ jobs:
 
             cd "${DEPLOY_DIR/#\~/$HOME}"
 
+            # Create proxy network if not present (needed by nginx-proxy)
+            docker network inspect proxy-net >/dev/null 2>&1 || {
+              log "Creating proxy-net network..."
+              docker network create proxy-net
+            }
+
             log "Pulling images..."
-            export BACKEND_IMAGE="$BE_IMAGE"
-            export FRONTEND_IMAGE="$FE_IMAGE"
-            if ! docker compose -f docker-compose.prod.yml pull backend frontend; then
+            if ! BACKEND_IMAGE="$BE_IMAGE" FRONTEND_IMAGE="$FE_IMAGE" \
+                docker compose -f docker-compose.prod.yml pull backend frontend; then
               log "ERROR: Pull failed. Deployment aborted — server unchanged."
               docker logout "$ECR_REGISTRY"
               exit 1
             fi
 
             log "Starting containers..."
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-build
+            if ! BACKEND_IMAGE="$BE_IMAGE" FRONTEND_IMAGE="$FE_IMAGE" \
+                docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-build; then
+              log "ERROR: docker compose up failed — check logs above for details."
+              docker logout "$ECR_REGISTRY"
+              exit 1
+            fi
 
             # Poll both containers — up to 60s (12 × 5s)
             log "Waiting for containers to become running..."
             RESULT="timeout"
             for i in $(seq 1 12); do
-              BE_STATUS=$(docker inspect --format='{{.State.Status}}' "$BACKEND_CONTAINER" 2>/dev/null || echo "missing")
-              FE_STATUS=$(docker inspect --format='{{.State.Status}}' "$FRONTEND_CONTAINER" 2>/dev/null || echo "missing")
+              BE_STATUS=$(docker inspect --format='{{.State.Status}}' "$BACKEND_CONTAINER" 2>/dev/null || true)
+              FE_STATUS=$(docker inspect --format='{{.State.Status}}' "$FRONTEND_CONTAINER" 2>/dev/null || true)
+              BE_STATUS="${BE_STATUS:-missing}"
+              FE_STATUS="${FE_STATUS:-missing}"
               log "[$i/12] backend=$BE_STATUS  frontend=$FE_STATUS"
-              if [ "$BE_STATUS" = "exited" ] || [ "$BE_STATUS" = "missing" ]; then RESULT="crashed"; break; fi
-              if [ "$FE_STATUS" = "exited" ] || [ "$FE_STATUS" = "missing" ]; then RESULT="crashed"; break; fi
+              case "$BE_STATUS" in exited|missing|dead) RESULT="crashed"; break ;; esac
+              case "$FE_STATUS" in exited|missing|dead) RESULT="crashed"; break ;; esac
               if [ "$BE_STATUS" = "running" ] && [ "$FE_STATUS" = "running" ]; then RESULT="healthy"; break; fi
               sleep 5
             done
@@ -264,13 +276,12 @@ jobs:
               docker pull "$PREV_BE_IMAGE"
               docker pull "$PREV_FE_IMAGE"
               log "Reverting to $PREV_TAG..."
-              export BACKEND_IMAGE="$PREV_BE_IMAGE"
-              export FRONTEND_IMAGE="$PREV_FE_IMAGE"
-              docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-build
+              BACKEND_IMAGE="$PREV_BE_IMAGE" FRONTEND_IMAGE="$PREV_FE_IMAGE" \
+                docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-build
               sleep 5
-              BE_RB=$(docker inspect --format='{{.State.Status}}' "$BACKEND_CONTAINER" 2>/dev/null || echo "missing")
-              FE_RB=$(docker inspect --format='{{.State.Status}}' "$FRONTEND_CONTAINER" 2>/dev/null || echo "missing")
-              log "Rollback status — backend=$BE_RB  frontend=$FE_RB"
+              BE_RB=$(docker inspect --format='{{.State.Status}}' "$BACKEND_CONTAINER" 2>/dev/null || true)
+              FE_RB=$(docker inspect --format='{{.State.Status}}' "$FRONTEND_CONTAINER" 2>/dev/null || true)
+              log "Rollback status — backend=${BE_RB:-missing}  frontend=${FE_RB:-missing}"
               log "ROLLBACK COMPLETE — serving $PREV_TAG"
             else
               log "No previous version available. Cannot roll back."
