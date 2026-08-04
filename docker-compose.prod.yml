@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sixportal-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sixportal
+      POSTGRES_USER: sixportal
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sixportal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: sixportal-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://sixportal:${DB_PASSWORD}@postgres:5432/sixportal
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 4000
+      NODE_ENV: production
+      ENQUIRY_API_KEY: ${ENQUIRY_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+      - proxy-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: sixportal-web
+    restart: unless-stopped
+    networks:
+      - proxy-net
+
+networks:
+  internal:
+    driver: bridge
+  proxy-net:
+    external: true
+
+volumes:
+  postgres_data:
