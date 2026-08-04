@@ -21,6 +21,7 @@ services:
       retries: 10
 
   backend:
+    image: ${BACKEND_IMAGE:-sixportal-backend:local}
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
@@ -40,6 +41,7 @@ services:
       - proxy-net
 
   frontend:
+    image: ${FRONTEND_IMAGE:-sixportal-frontend:local}
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
