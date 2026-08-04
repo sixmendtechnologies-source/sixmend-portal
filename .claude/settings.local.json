@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git reset *)"
+      "Bash(git reset *)",
+      "Bash(gh run *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Beinex\\Documents\\Learning\\Sixmend\\mechbook-landing\\src\\app",
+      "C:\\Users\\Beinex\\Documents\\Learning\\Sixmend\\mechbook-landing"
     ]
   }
 }

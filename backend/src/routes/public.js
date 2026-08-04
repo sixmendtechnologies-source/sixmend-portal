@@ -16,8 +16,8 @@ router.post("/enquiry", async (req, res) => {
   if (!source || !VALID_SOURCES.includes(source)) {
     return res.status(400).json({ error: `source must be one of: ${VALID_SOURCES.join(", ")}` });
   }
-  if (!contact_number || !gmail) {
-    return res.status(400).json({ error: "contact_number and gmail are required" });
+  if (!contact_number) {
+    return res.status(400).json({ error: "contact_number is required" });
   }
 
   const subject = title || `Enquiry from ${source} website`;
