@@ -7,8 +7,8 @@ on:
 env:
   AWS_REGION: ap-south-1
   ECR_REGISTRY: 555292118815.dkr.ecr.ap-south-1.amazonaws.com
-  BACKEND_REPO: backend
-  FRONTEND_REPO: frontend
+  BACKEND_REPO: sixportal-be
+  FRONTEND_REPO: sixportal-fe
   DEPLOY_DIR: ~/sixportal
 
 jobs:
@@ -72,8 +72,8 @@ jobs:
             --query 'imageIds[*].imageTag' \
             --output text 2>/dev/null || echo "")
 
-          LATEST=$(echo "$TAGS" | tr '\t' '\n' | grep '^sixportal-web-v' | \
-            sed 's/sixportal-web-v//' | \
+          LATEST=$(echo "$TAGS" | tr '\t' '\n' | grep '^sixportal-fe-v' | \
+            sed 's/sixportal-fe-v//' | \
             sort -t. -k1,1n -k2,2n -k3,3n | \
             tail -1)
 
@@ -87,8 +87,8 @@ jobs:
           fi
 
           VERSION="v${NEXT}"
-          BACKEND_IMAGE="${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:sixportal-api-${VERSION}"
-          FRONTEND_IMAGE="${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:sixportal-web-${VERSION}"
+          BACKEND_IMAGE="${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:sixportal-be-${VERSION}"
+          FRONTEND_IMAGE="${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:sixportal-fe-${VERSION}"
 
           echo "version=${VERSION}"         >> "$GITHUB_OUTPUT"
           echo "backend_image=${BACKEND_IMAGE}"   >> "$GITHUB_OUTPUT"
