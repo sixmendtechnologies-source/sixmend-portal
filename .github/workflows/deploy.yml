@@ -9,7 +9,7 @@ env:
   ECR_REGISTRY: 555292118815.dkr.ecr.ap-south-1.amazonaws.com
   BACKEND_REPO: backend
   FRONTEND_REPO: frontend
-  DEPLOY_DIR: ~/sixportal
+  DEPLOY_DIR: /home/ubuntu/sixmend-portal
 
 jobs:
   # ─── Job 1: Install deps and build ──────────────────────────────────────────
@@ -123,13 +123,26 @@ jobs:
     name: Deploy to server
     runs-on: ubuntu-latest
     needs: docker
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get ECR login password
+        id: ecr-password
+        run: echo "password=$(aws ecr get-login-password --region ${{ env.AWS_REGION }})" >> "$GITHUB_OUTPUT"
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
-          AWS_REGION: ${{ env.AWS_REGION }}
           ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
+          ECR_PASSWORD: ${{ steps.ecr-password.outputs.password }}
           BACKEND_IMAGE: ${{ needs.docker.outputs.backend_image }}
           FRONTEND_IMAGE: ${{ needs.docker.outputs.frontend_image }}
           VERSION: ${{ needs.docker.outputs.version }}
@@ -138,13 +151,12 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: AWS_REGION,ECR_REGISTRY,BACKEND_IMAGE,FRONTEND_IMAGE,VERSION,DEPLOY_DIR
+          envs: ECR_REGISTRY,ECR_PASSWORD,BACKEND_IMAGE,FRONTEND_IMAGE,VERSION,DEPLOY_DIR
           script: |
             set -e
 
-            # Authenticate with ECR
-            aws ecr get-login-password --region "$AWS_REGION" | \
-              docker login --username AWS --password-stdin "$ECR_REGISTRY"
+            # Authenticate with ECR using token fetched from CI runner (no aws CLI needed on server)
+            echo "$ECR_PASSWORD" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
             cd "$DEPLOY_DIR"
 
