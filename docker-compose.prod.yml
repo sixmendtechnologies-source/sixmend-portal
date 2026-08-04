@@ -25,12 +25,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
-    container_name: sixportal-api
+    container_name: sixportal-app
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://sixportal:${DB_PASSWORD}@postgres:5432/sixportal
       JWT_SECRET: ${JWT_SECRET}
-      PORT: 4000
+      PORT: 9000
       NODE_ENV: production
       ENQUIRY_API_KEY: ${ENQUIRY_API_KEY}
     depends_on:
@@ -38,7 +38,6 @@ services:
         condition: service_healthy
     networks:
       - internal
-      - proxy-net
 
   frontend:
     image: ${FRONTEND_IMAGE:-sixportal-frontend:local}
@@ -48,6 +47,7 @@ services:
     container_name: sixportal-web
     restart: unless-stopped
     networks:
+      - internal
       - proxy-net
 
 networks:

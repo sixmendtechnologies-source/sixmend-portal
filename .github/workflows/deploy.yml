@@ -13,7 +13,7 @@ env:
   FRONTEND_REPO: frontend
   BACKEND_PROJECT: sixportal-be
   FRONTEND_PROJECT: sixportal-fe
-  BACKEND_CONTAINER: sixportal-api
+  BACKEND_CONTAINER: sixportal-app
   FRONTEND_CONTAINER: sixportal-web
   DEPLOY_DIR: ~/sixmend-portal
 
