@@ -7,8 +7,8 @@ on:
 env:
   AWS_REGION: ap-south-1
   ECR_REGISTRY: 555292118815.dkr.ecr.ap-south-1.amazonaws.com
-  BACKEND_REPO: sixportal-be
-  FRONTEND_REPO: sixportal-fe
+  BACKEND_REPO: backend
+  FRONTEND_REPO: frontend
   DEPLOY_DIR: ~/sixportal
 
 jobs:
