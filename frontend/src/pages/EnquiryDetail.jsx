@@ -103,7 +103,7 @@ export default function EnquiryDetail() {
               onClick={() => moveStage("lost")}
               disabled={updating}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium hover:opacity-80 disabled:opacity-40 transition-opacity"
-              style={{ background: "#1e0e0e", color: C.red, border: `1px solid ${C.red}40` }}
+              style={{ background: "var(--lost-bg)", color: C.red, border: "1px solid var(--lost-border)" }}
             >
               <AlertTriangle size={12} /> Mark as Lost
             </button>
@@ -120,7 +120,7 @@ export default function EnquiryDetail() {
         {isLost ? (
           <div
             className="flex items-center gap-3 px-4 py-3 rounded-lg"
-            style={{ background: "#1e0e0e", border: `1px solid ${C.red}30` }}
+            style={{ background: "var(--lost-bg)", border: "1px solid var(--lost-border-light)" }}
           >
             <AlertTriangle size={15} style={{ color: C.red, flexShrink: 0 }} />
             <span className="text-[13px]" style={{ color: C.red }}>
@@ -142,8 +142,8 @@ export default function EnquiryDetail() {
                         className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 transition-all"
                         style={{
                           background: done ? C.green : current ? C.green : C.border,
-                          color: done || current ? "#0a1208" : C.textMuted,
-                          boxShadow: current ? `0 0 0 4px ${C.green}25` : "none",
+                          color: done || current ? "var(--btn-primary-text)" : C.textMuted,
+                          boxShadow: current ? "0 0 0 4px var(--color-green-glow)" : "none",
                         }}
                       >
                         {done ? "✓" : idx + 1}

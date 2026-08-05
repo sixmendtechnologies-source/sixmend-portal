@@ -5,7 +5,7 @@ export default function Table({ columns, data, onRowClick }) {
     <div className="overflow-x-auto rounded-xl" style={{ border: `1px solid ${C.border}` }}>
       <table className="w-full text-[13px]" style={{ borderCollapse: "collapse" }}>
         <thead>
-          <tr style={{ borderBottom: `1px solid ${C.border}`, background: "#0d1117" }}>
+          <tr style={{ borderBottom: `1px solid ${C.border}`, background: "var(--table-header-bg)" }}>
             {columns.map((col) => (
               <th
                 key={col.key}
@@ -39,7 +39,7 @@ export default function Table({ columns, data, onRowClick }) {
                   background: C.card,
                   cursor: onRowClick ? "pointer" : "default",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#161b26")}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--table-hover-bg)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = C.card)}
               >
                 {columns.map((col) => (

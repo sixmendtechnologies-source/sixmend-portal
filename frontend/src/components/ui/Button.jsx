@@ -1,7 +1,7 @@
 import { C } from "../../utils/colors";
 
 const VARIANTS = {
-  primary: { background: C.green, color: "#0a1208", border: "none" },
+  primary: { background: C.green, color: "var(--btn-primary-text)", border: "none" },
   secondary: { background: "transparent", color: C.textMuted, border: `1px solid ${C.border}` },
   danger: { background: C.red, color: "#fff", border: "none" },
 };

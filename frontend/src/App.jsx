@@ -13,8 +13,8 @@ function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen" style={{ background: "#0b0e14" }}>
-        <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#8bc34a", borderTopColor: "transparent" }} />
+      <div className="flex items-center justify-center h-screen" style={{ background: "var(--bg)" }}>
+        <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--color-green)", borderTopColor: "transparent" }} />
       </div>
     );
   }

@@ -5,7 +5,7 @@ export default function Modal({ title, onClose, children, width = "480px" }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.7)" }}
+      style={{ background: "var(--modal-overlay)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div

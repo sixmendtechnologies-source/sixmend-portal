@@ -1,7 +1,8 @@
 import { useLocation } from "react-router-dom";
-import { Maximize2, Settings, Bell } from "lucide-react";
+import { Sun, Moon, Bell, Settings, Maximize2 } from "lucide-react";
 import { C } from "../../utils/colors";
 import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
 
 const PAGE_TITLES = {
   "/dashboard": "Dashboard",
@@ -13,6 +14,7 @@ const PAGE_TITLES = {
 export default function TopNav() {
   const { pathname } = useLocation();
   const { user } = useAuth();
+  const { theme, toggle } = useTheme();
   const title = PAGE_TITLES[pathname] || "SixPortal";
 
   return (
@@ -23,7 +25,7 @@ export default function TopNav() {
       <div className="flex items-center gap-3">
         <div
           className="w-7 h-7 rounded flex items-center justify-center text-[11px] font-bold"
-          style={{ background: "#1c2230", color: C.textMuted }}
+          style={{ background: "var(--logo-chip-bg)", color: C.textMuted }}
         >
           SP
         </div>
@@ -39,6 +41,14 @@ export default function TopNav() {
         <Bell size={15} />
         <Settings size={15} />
         <Maximize2 size={15} />
+        <button
+          onClick={toggle}
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          className="w-7 h-7 rounded flex items-center justify-center hover:opacity-70 transition-opacity"
+          style={{ color: C.textMuted }}
+        >
+          {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
         {user && (
           <span className="text-[12px] ml-2" style={{ color: C.textMuted }}>
             {user.name}

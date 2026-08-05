@@ -2,38 +2,38 @@ import { C } from "../../utils/colors";
 
 const STATUS_COLORS = {
   // enquiry pipeline stages
-  open: { bg: "#1a2a3a", color: C.blueLight },
-  first_level_discussion: { bg: "#1a2a2a", color: C.teal },
-  kick_off: { bg: "#2a2a1a", color: C.orange },
-  agreement: { bg: "#1a1a2a", color: C.purple },
-  client: { bg: "#1a2a1a", color: C.green },
-  lost: { bg: "#2a1a1a", color: C.red },
+  open: { bg: "var(--badge-blue-bg)", color: C.blueLight },
+  first_level_discussion: { bg: "var(--badge-teal-bg)", color: C.teal },
+  kick_off: { bg: "var(--badge-orange-bg)", color: C.orange },
+  agreement: { bg: "var(--badge-purple-bg)", color: C.purple },
+  client: { bg: "var(--badge-green-bg)", color: C.green },
+  lost: { bg: "var(--badge-red-bg)", color: C.red },
   // phase task statuses
-  todo: { bg: "#1a2a3a", color: C.blueLight },
-  inprogress: { bg: "#2a2a1a", color: C.orange },
-  hold: { bg: "#202020", color: C.textMuted },
-  completed: { bg: "#1a2a1a", color: C.green },
+  todo: { bg: "var(--badge-blue-bg)", color: C.blueLight },
+  inprogress: { bg: "var(--badge-orange-bg)", color: C.orange },
+  hold: { bg: "var(--badge-gray-bg)", color: C.textMuted },
+  completed: { bg: "var(--badge-green-bg)", color: C.green },
   // legacy enquiry statuses
-  new: { bg: "#1a2a3a", color: C.blueLight },
-  "in-progress": { bg: "#1a2a1a", color: C.teal },
-  in_progress: { bg: "#1a2a1a", color: C.teal },
-  quoted: { bg: "#2a2a1a", color: C.orange },
-  won: { bg: "#1a2a1a", color: C.green },
+  new: { bg: "var(--badge-blue-bg)", color: C.blueLight },
+  "in-progress": { bg: "var(--badge-green-bg)", color: C.teal },
+  in_progress: { bg: "var(--badge-green-bg)", color: C.teal },
+  quoted: { bg: "var(--badge-orange-bg)", color: C.orange },
+  won: { bg: "var(--badge-green-bg)", color: C.green },
   // client statuses
-  active: { bg: "#1a2a1a", color: C.green },
-  inactive: { bg: "#2a1a2a", color: C.textMuted },
-  prospect: { bg: "#1a1a2a", color: C.purple },
+  active: { bg: "var(--badge-green-bg)", color: C.green },
+  inactive: { bg: "var(--badge-pink-bg)", color: C.textMuted },
+  prospect: { bg: "var(--badge-purple-bg)", color: C.purple },
   // payment statuses
-  paid: { bg: "#1a2a1a", color: C.green },
-  pending: { bg: "#2a2a1a", color: C.orange },
-  overdue: { bg: "#2a1a1a", color: C.red },
+  paid: { bg: "var(--badge-green-bg)", color: C.green },
+  pending: { bg: "var(--badge-orange-bg)", color: C.orange },
+  overdue: { bg: "var(--badge-red-bg)", color: C.red },
   // expense statuses
-  approved: { bg: "#1a2a1a", color: C.green },
-  rejected: { bg: "#2a1a1a", color: C.red },
+  approved: { bg: "var(--badge-green-bg)", color: C.green },
+  rejected: { bg: "var(--badge-red-bg)", color: C.red },
   // priority
-  high: { bg: "#2a1a1a", color: C.red },
-  medium: { bg: "#2a2a1a", color: C.orange },
-  low: { bg: "#1a2a1a", color: C.green },
+  high: { bg: "var(--badge-red-bg)", color: C.red },
+  medium: { bg: "var(--badge-orange-bg)", color: C.orange },
+  low: { bg: "var(--badge-green-bg)", color: C.green },
 };
 
 const LABELS = {

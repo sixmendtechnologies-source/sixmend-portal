@@ -5,7 +5,6 @@ import {
   Users,
   CreditCard,
   LogOut,
-  HelpCircle,
 } from "lucide-react";
 import { C } from "../../utils/colors";
 import { useAuth } from "../../context/AuthContext";
@@ -47,7 +46,7 @@ export default function SideNav() {
               className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
               style={{
                 color: isActive ? C.green : C.textMuted,
-                background: isActive ? "#111a12" : "transparent",
+                background: isActive ? "var(--nav-active-bg)" : "transparent",
                 border: isActive ? `1px solid ${C.green}` : "1px solid transparent",
               }}
             >
@@ -76,7 +75,7 @@ export default function SideNav() {
 
       <div
         className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold"
-        style={{ background: C.orange, color: "#1a1200" }}
+        style={{ background: "#fb8c00", color: "#1a1200" }}
         title={user?.name}
       >
         {initials}

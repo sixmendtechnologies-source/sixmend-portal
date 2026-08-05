@@ -584,7 +584,7 @@ export default function ClientDetail() {
         {phase.log_count > 0 && (
           <span
             className="absolute -top-1 -right-1.5 w-3.5 h-3.5 rounded-full text-[8px] flex items-center justify-center font-bold"
-            style={{ background: C.teal, color: "#001a1a" }}
+            style={{ background: C.teal, color: "var(--btn-primary-text)" }}
           >
             {phase.log_count}
           </span>
@@ -657,7 +657,7 @@ export default function ClientDetail() {
     <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
       <table className="w-full text-[13px]" style={{ borderCollapse: "collapse" }}>
         <thead>
-          <tr style={{ borderBottom: `1px solid ${C.border}`, background: "#0d1117" }}>
+          <tr style={{ borderBottom: `1px solid ${C.border}`, background: "var(--table-header-bg)" }}>
             {["Task", "Status", "Start", "End", "Description", ""].map((h) => (
               <th key={h} className="px-4 py-3 text-left text-[11px] font-medium" style={{ color: C.textMuted }}>{h}</th>
             ))}
@@ -747,7 +747,7 @@ export default function ClientDetail() {
           <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
             <table className="w-full text-[13px]" style={{ borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ borderBottom: `1px solid ${C.border}`, background: "#0d1117" }}>
+                <tr style={{ borderBottom: `1px solid ${C.border}`, background: "var(--table-header-bg)" }}>
                   {["Title", "Amount", "Date", "Status", "Notes", ""].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-[11px] font-medium" style={{ color: C.textMuted }}>{h}</th>
                   ))}
@@ -767,7 +767,7 @@ export default function ClientDetail() {
                           title="Generate Invoice"
                           onClick={() => openInvoice(p)}
                           className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium hover:opacity-80 transition-opacity"
-                          style={{ background: "#1a2a1a", color: C.green, border: `1px solid ${C.green}30` }}
+                          style={{ background: "var(--badge-green-bg)", color: C.green, border: "1px solid var(--color-green-border)" }}
                         >
                           <FileDown size={12} /> Invoice
                         </button>
@@ -856,7 +856,7 @@ export default function ClientDetail() {
         </div>
       ))}
       <div className="flex gap-3 p-4 rounded-xl" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{ background: C.orange, color: "#1a0800" }}>AD</div>
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{ background: "#fb8c00", color: "#1a0800" }}>AD</div>
         <div className="flex-1 flex gap-2 items-end">
           <textarea
             value={commentText}
@@ -871,7 +871,7 @@ export default function ClientDetail() {
           />
           <button onClick={handleAddComment} disabled={!commentText.trim()}
             className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 disabled:opacity-40 hover:opacity-80 transition-opacity"
-            style={{ background: C.green, color: "#0a1208" }}>
+            style={{ background: C.green, color: "var(--btn-primary-text)" }}>
             <Send size={14} />
           </button>
         </div>
@@ -987,7 +987,7 @@ export default function ClientDetail() {
             />
             <button onClick={addLog} disabled={!logText.trim()}
               className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 disabled:opacity-40 hover:opacity-80 transition-opacity"
-              style={{ background: C.green, color: "#0a1208" }}>
+              style={{ background: C.green, color: "var(--btn-primary-text)" }}>
               <Send size={14} />
             </button>
           </div>
@@ -1072,7 +1072,7 @@ export default function ClientDetail() {
                   </button>
                 </div>
                 <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
-                  <div className="grid gap-0 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide" style={{ gridTemplateColumns: "1fr 120px 28px", background: "#0d1117", color: C.textMuted }}>
+                  <div className="grid gap-0 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide" style={{ gridTemplateColumns: "1fr 120px 28px", background: "var(--table-header-bg)", color: C.textMuted }}>
                     <span>Description</span><span className="text-right">Amount (₹)</span><span />
                   </div>
                   {(invoiceForm.items || []).map((item, idx) => (

@@ -36,7 +36,7 @@ export default function Login() {
         <div className="flex flex-col items-center mb-8">
           <div
             className="w-12 h-12 rounded-xl flex items-center justify-center text-[18px] font-bold mb-3"
-            style={{ background: "#1c2230", color: C.green }}
+            style={{ background: "var(--logo-chip-bg)", color: C.green }}
           >
             SP
           </div>
@@ -101,7 +101,7 @@ export default function Login() {
             type="submit"
             disabled={loading}
             className="py-2.5 rounded-lg text-[14px] font-semibold mt-2 transition-opacity disabled:opacity-60"
-            style={{ background: C.green, color: "#0a1208" }}
+            style={{ background: C.green, color: "var(--btn-primary-text)" }}
           >
             {loading ? "Signing in…" : "Sign In"}
           </button>

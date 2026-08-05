@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(git reset *)",
-      "Bash(gh run *)"
+      "Bash(gh run *)",
+      "Bash(Select-String \"vite\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\Beinex\\Documents\\Learning\\Sixmend\\mechbook-landing\\src\\app",
