@@ -8,6 +8,7 @@ import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import { Input, Select, Textarea } from "../components/ui/Input";
 import { C } from "../utils/colors";
+import CustomFieldsSection from "../components/ui/CustomFieldsSection";
 
 const SOURCES = ["MechBook", "Stepney", "Sixmend", "CookBy", "General"];
 
@@ -21,6 +22,7 @@ const EMPTY = {
   priority: "medium",
   value: "",
   assigned_to: "",
+  custom_data: {},
 };
 
 export default function Enquiries() {
@@ -210,6 +212,11 @@ export default function Enquiries() {
               <Input label="Value (₹)" type="number" value={form.value} onChange={field("value")} placeholder="0.00" />
             </div>
             <Input label="Assigned To" value={form.assigned_to || ""} onChange={field("assigned_to")} placeholder="Team member name" />
+            <CustomFieldsSection
+              module="enquiries"
+              values={form.custom_data || {}}
+              onChange={(cd) => setForm({ ...form, custom_data: cd })}
+            />
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
               <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</Button>

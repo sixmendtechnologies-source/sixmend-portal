@@ -7,9 +7,10 @@ import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import { Input, Select, Textarea } from "../components/ui/Input";
 import { C } from "../utils/colors";
+import CustomFieldsSection from "../components/ui/CustomFieldsSection";
 
 const TODAY = new Date().toISOString().slice(0, 10);
-const EMPTY = { title: "", category: "Materials", amount: "", expense_date: TODAY, description: "", status: "pending" };
+const EMPTY = { title: "", category: "Materials", amount: "", expense_date: TODAY, description: "", status: "pending", custom_data: {} };
 
 const CATEGORIES = ["Materials", "Labor", "Equipment", "Travel", "Other"];
 
@@ -83,7 +84,7 @@ export default function Expenses() {
     {
       key: "amount",
       label: "Amount",
-      render: (v) => <span style={{ color: C.green, fontWeight: 600 }}>${parseFloat(v).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>,
+      render: (v) => <span style={{ color: C.green, fontWeight: 600 }}>₹{parseFloat(v).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>,
     },
     {
       key: "expense_date",
@@ -114,7 +115,7 @@ export default function Expenses() {
           <h1 className="text-[18px] font-semibold" style={{ color: C.textPrimary }}>Expenses</h1>
           {expenses.length > 0 && (
             <p className="text-[12px] mt-0.5" style={{ color: C.textMuted }}>
-              Total: <span style={{ color: C.green, fontWeight: 600 }}>${total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+              Total: <span style={{ color: C.green, fontWeight: 600 }}>₹{total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
               {" "}across {expenses.length} expense{expenses.length !== 1 ? "s" : ""}
             </p>
           )}
@@ -173,7 +174,7 @@ export default function Expenses() {
               <Select label="Category" value={form.category} onChange={field("category")} required>
                 {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </Select>
-              <Input label="Amount ($)" type="number" value={form.amount} onChange={field("amount")} required placeholder="0.00" />
+              <Input label="Amount (₹)" type="number" value={form.amount} onChange={field("amount")} required placeholder="0.00" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Input label="Date" type="date" value={form.expense_date} onChange={field("expense_date")} required />
@@ -184,6 +185,11 @@ export default function Expenses() {
               </Select>
             </div>
             <Textarea label="Notes" value={form.description || ""} onChange={field("description")} placeholder="Additional notes…" />
+            <CustomFieldsSection
+              module="expenses"
+              values={form.custom_data || {}}
+              onChange={(cd) => setForm({ ...form, custom_data: cd })}
+            />
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
               <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</Button>

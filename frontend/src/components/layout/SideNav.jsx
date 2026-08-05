@@ -5,6 +5,8 @@ import {
   Users,
   CreditCard,
   LogOut,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import { C } from "../../utils/colors";
 import { useAuth } from "../../context/AuthContext";
@@ -16,7 +18,7 @@ const navItems = [
   { to: "/expenses", icon: CreditCard, label: "Expenses" },
 ];
 
-export default function SideNav() {
+export default function SideNav({ expanded, onToggle }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -31,32 +33,56 @@ export default function SideNav() {
 
   return (
     <div
-      className="w-14 flex-shrink-0 flex flex-col items-center py-4 gap-1"
-      style={{ borderRight: `1px solid ${C.border}`, background: C.bg }}
+      className="flex-shrink-0 flex flex-col py-3 gap-1 overflow-hidden"
+      style={{
+        width: expanded ? "200px" : "56px",
+        borderRight: `1px solid ${C.border}`,
+        background: C.bg,
+        transition: "width 200ms ease",
+      }}
     >
+      {/* Toggle button */}
+      <button
+        onClick={onToggle}
+        title={expanded ? "Collapse sidebar" : "Expand sidebar"}
+        className="flex items-center justify-center w-8 h-8 rounded-lg mx-auto mb-1 transition-colors hover:opacity-70"
+        style={{ color: C.textMuted }}
+      >
+        {expanded ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+      </button>
+
+      {/* Nav items */}
       {navItems.map(({ to, icon: Icon, label }) => (
         <NavLink
           key={to}
           to={to}
-          title={label}
-          className="group relative"
+          title={!expanded ? label : undefined}
+          className="group relative px-2"
         >
           {({ isActive }) => (
             <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
+              className="flex items-center gap-3 rounded-lg transition-colors"
               style={{
+                padding: expanded ? "8px 10px" : "10px",
+                justifyContent: expanded ? "flex-start" : "center",
                 color: isActive ? C.green : C.textMuted,
                 background: isActive ? "var(--nav-active-bg)" : "transparent",
                 border: isActive ? `1px solid ${C.green}` : "1px solid transparent",
               }}
             >
-              <Icon size={17} />
-              <span
-                className="absolute left-14 z-50 px-2 py-1 rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"
-                style={{ background: C.card, color: C.textPrimary, border: `1px solid ${C.border}` }}
-              >
-                {label}
-              </span>
+              <Icon size={17} style={{ flexShrink: 0 }} />
+              {expanded && (
+                <span className="text-[13px] font-medium whitespace-nowrap">{label}</span>
+              )}
+              {/* Tooltip when collapsed */}
+              {!expanded && (
+                <span
+                  className="absolute left-14 z-50 px-2 py-1 rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"
+                  style={{ background: C.card, color: C.textPrimary, border: `1px solid ${C.border}` }}
+                >
+                  {label}
+                </span>
+              )}
             </div>
           )}
         </NavLink>
@@ -64,21 +90,50 @@ export default function SideNav() {
 
       <div className="flex-1" />
 
+      {/* Logout */}
       <button
         onClick={handleLogout}
-        title="Logout"
-        className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors hover:bg-red-900/20"
-        style={{ color: C.textMuted }}
+        title={!expanded ? "Logout" : undefined}
+        className="group relative flex items-center gap-3 rounded-lg mx-2 transition-colors hover:opacity-70"
+        style={{
+          padding: expanded ? "8px 10px" : "10px",
+          justifyContent: expanded ? "flex-start" : "center",
+          color: C.textMuted,
+        }}
       >
-        <LogOut size={17} />
+        <LogOut size={17} style={{ flexShrink: 0 }} />
+        {expanded && <span className="text-[13px] font-medium whitespace-nowrap">Logout</span>}
+        {!expanded && (
+          <span
+            className="absolute left-12 z-50 px-2 py-1 rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"
+            style={{ background: C.card, color: C.textPrimary, border: `1px solid ${C.border}` }}
+          >
+            Logout
+          </span>
+        )}
       </button>
 
+      {/* User avatar */}
       <div
-        className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold"
-        style={{ background: "#fb8c00", color: "#1a1200" }}
-        title={user?.name}
+        className="flex items-center gap-2 mx-2 rounded-lg px-2 py-1.5 overflow-hidden"
+        title={!expanded ? user?.name : undefined}
       >
-        {initials}
+        <div
+          className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+          style={{ background: "#fb8c00", color: "#1a1200" }}
+        >
+          {initials}
+        </div>
+        {expanded && (
+          <div className="overflow-hidden">
+            <div className="text-[12px] font-medium truncate leading-tight" style={{ color: C.textPrimary }}>
+              {user?.name}
+            </div>
+            <div className="text-[10px] truncate leading-tight" style={{ color: C.textMuted }}>
+              {user?.email}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

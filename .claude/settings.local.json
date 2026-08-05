@@ -3,7 +3,11 @@
     "allow": [
       "Bash(git reset *)",
       "Bash(gh run *)",
-      "Bash(Select-String \"vite\")"
+      "Bash(Select-String \"vite\")",
+      "Bash(docker-compose down *)",
+      "Bash(docker-compose up *)",
+      "Bash(docker-compose logs *)",
+      "Bash(Get-ChildItem -Filter \"*.env*\" -Recurse -ErrorAction SilentlyContinue)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Beinex\\Documents\\Learning\\Sixmend\\mechbook-landing\\src\\app",

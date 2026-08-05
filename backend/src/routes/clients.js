@@ -43,12 +43,12 @@ router.get("/:id", requireAuth, async (req, res) => {
 });
 
 router.post("/", requireAuth, async (req, res) => {
-  const { name, company, email, phone, address, status, notes } = req.body;
+  const { name, company, email, phone, address, status, notes, custom_data } = req.body;
   if (!name) return res.status(400).json({ error: "Name is required" });
   try {
     const { rows } = await pool.query(
-      "INSERT INTO clients (name, company, email, phone, address, status, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *",
-      [name, company, email, phone, address, status || "prospect", notes]
+      "INSERT INTO clients (name, company, email, phone, address, status, notes, custom_data) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *",
+      [name, company, email, phone, address, status || "prospect", notes, JSON.stringify(custom_data || {})]
     );
     res.status(201).json(rows[0]);
   } catch {
@@ -57,13 +57,13 @@ router.post("/", requireAuth, async (req, res) => {
 });
 
 router.put("/:id", requireAuth, async (req, res) => {
-  const { name, company, email, phone, address, status, notes, total_value, total_value_note } = req.body;
+  const { name, company, email, phone, address, status, notes, total_value, total_value_note, custom_data } = req.body;
   try {
     const { rows } = await pool.query(
       `UPDATE clients SET name=$1,company=$2,email=$3,phone=$4,address=$5,status=$6,notes=$7,
-       total_value=$8,total_value_note=$9,updated_at=NOW() WHERE id=$10 RETURNING *`,
+       total_value=$8,total_value_note=$9,custom_data=$10,updated_at=NOW() WHERE id=$11 RETURNING *`,
       [name, company, email, phone, address, status, notes,
-       total_value ?? null, total_value_note ?? null, req.params.id]
+       total_value ?? null, total_value_note ?? null, JSON.stringify(custom_data || {}), req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: "Not found" });
     res.json(rows[0]);

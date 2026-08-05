@@ -34,12 +34,11 @@ export default function Login() {
         style={{ background: C.card, border: `1px solid ${C.border}` }}
       >
         <div className="flex flex-col items-center mb-8">
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-[18px] font-bold mb-3"
-            style={{ background: "var(--logo-chip-bg)", color: C.green }}
-          >
-            SP
-          </div>
+          <img
+            src="/sixmend-mark.png"
+            alt="Sixmend"
+            className="w-14 h-14 rounded-xl object-contain mb-3"
+          />
           <h1 className="text-[22px] font-bold" style={{ color: C.textPrimary }}>
             SixPortal
           </h1>
@@ -107,9 +106,6 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="text-[11px] text-center mt-6" style={{ color: C.textMuted }}>
-          Default: admin@sixmend.com / admin123
-        </p>
       </div>
     </div>
   );

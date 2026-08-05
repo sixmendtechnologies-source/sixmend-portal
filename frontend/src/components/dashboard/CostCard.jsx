@@ -30,7 +30,7 @@ export default function CostCard({ stats }) {
     <Card>
       <CardHeader title="Expenses" />
       <div className="flex items-center gap-4 text-[11px] mb-2" style={{ color: C.textMuted }}>
-        <span>Total: <span style={{ color: C.green, fontWeight: 600 }}>${total.toLocaleString()}</span></span>
+        <span>Total: <span style={{ color: C.green, fontWeight: 600 }}>₹{total.toLocaleString("en-IN")}</span></span>
       </div>
       <div style={{ height: 190 }}>
         <ResponsiveContainer width="100%" height="100%">
@@ -40,12 +40,12 @@ export default function CostCard({ stats }) {
               tick={{ fill: C.textMuted, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(v) => v === 0 ? "$0" : `$${(v / 1000).toFixed(1)}K`}
+              tickFormatter={(v) => v === 0 ? "₹0" : `₹${(v / 1000).toFixed(1)}K`}
             />
             <XAxis dataKey="name" tick={{ fill: C.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
             <Tooltip
               contentStyle={{ background: C.card, border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: 12 }}
-              formatter={(v) => [`$${v.toLocaleString()}`, "Amount"]}
+              formatter={(v) => [`₹${v.toLocaleString("en-IN")}`, "Amount"]}
             />
             <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={36}>
               {data.map((d, i) => (

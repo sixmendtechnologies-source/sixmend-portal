@@ -5,7 +5,7 @@ import TasksCard from "../components/dashboard/TasksCard";
 import ProgressCard from "../components/dashboard/ProgressCard";
 import TimeCard from "../components/dashboard/TimeCard";
 import CostCard from "../components/dashboard/CostCard";
-import WorkloadCard from "../components/dashboard/WorkloadCard";
+import PaymentOverviewCard from "../components/dashboard/PaymentOverviewCard";
 import { C } from "../utils/colors";
 
 export default function Dashboard() {
@@ -37,7 +37,7 @@ export default function Dashboard() {
       <ProgressCard stats={stats} />
       <TimeCard stats={stats} />
       <CostCard stats={stats} />
-      <WorkloadCard stats={stats} />
+      <PaymentOverviewCard stats={stats} />
     </div>
   );
 }

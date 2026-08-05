@@ -30,6 +30,10 @@ const STATUS_COLORS = {
   // expense statuses
   approved: { bg: "var(--badge-green-bg)", color: C.green },
   rejected: { bg: "var(--badge-red-bg)", color: C.red },
+  // user statuses & roles
+  invited: { bg: "var(--badge-orange-bg)", color: C.orange },
+  admin: { bg: "var(--badge-teal-bg)", color: C.teal },
+  member: { bg: "var(--badge-gray-bg)", color: C.textMuted },
   // priority
   high: { bg: "var(--badge-red-bg)", color: C.red },
   medium: { bg: "var(--badge-orange-bg)", color: C.orange },

@@ -6,16 +6,16 @@ services:
     container_name: sixportal-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: sixportal
-      POSTGRES_USER: sixportal
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/src/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
     networks:
       - internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sixportal"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -27,12 +27,10 @@ services:
       dockerfile: Dockerfile.prod
     container_name: sixportal-app
     restart: unless-stopped
+    env_file:
+      - .env.prod
     environment:
-      DATABASE_URL: postgresql://sixportal:${DB_PASSWORD}@postgres:5432/sixportal
-      JWT_SECRET: ${JWT_SECRET}
-      PORT: 9000
-      NODE_ENV: production
-      ENQUIRY_API_KEY: ${ENQUIRY_API_KEY}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     depends_on:
       postgres:
         condition: service_healthy

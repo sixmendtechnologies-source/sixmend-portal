@@ -2,12 +2,14 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Layout from "./components/layout/Layout";
 import Login from "./pages/Login";
+import Activate from "./pages/Activate";
 import Dashboard from "./pages/Dashboard";
 import Enquiries from "./pages/Enquiries";
 import EnquiryDetail from "./pages/EnquiryDetail";
 import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import Expenses from "./pages/Expenses";
+import Settings from "./pages/Settings";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -27,6 +29,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/activate/:token" element={<Activate />} />
           <Route
             path="/"
             element={
@@ -42,6 +45,7 @@ export default function App() {
             <Route path="clients" element={<Clients />} />
             <Route path="clients/:id" element={<ClientDetail />} />
             <Route path="expenses" element={<Expenses />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
       </BrowserRouter>

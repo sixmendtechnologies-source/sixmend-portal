@@ -8,8 +8,9 @@ import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import { Input, Select, Textarea } from "../components/ui/Input";
 import { C } from "../utils/colors";
+import CustomFieldsSection from "../components/ui/CustomFieldsSection";
 
-const EMPTY = { name: "", company: "", email: "", phone: "", address: "", status: "prospect", notes: "" };
+const EMPTY = { name: "", company: "", email: "", phone: "", address: "", status: "prospect", notes: "", custom_data: {} };
 
 export default function Clients() {
   const navigate = useNavigate();
@@ -146,6 +147,11 @@ export default function Clients() {
               <option value="inactive">Inactive</option>
             </Select>
             <Textarea label="Notes" value={form.notes || ""} onChange={field("notes")} placeholder="Any additional notes…" />
+            <CustomFieldsSection
+              module="clients"
+              values={form.custom_data || {}}
+              onChange={(cd) => setForm({ ...form, custom_data: cd })}
+            />
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
               <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
