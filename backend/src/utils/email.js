@@ -19,6 +19,7 @@ export async function sendActivationEmail({ to, name, token }) {
     },
   });
 
+  console.log(`[EMAIL] Sending activation email to ${to} via ${process.env.SMTP_HOST}`);
   await transporter.sendMail({
     from: `"SixPortal" <${process.env.SMTP_USER}>`,
     to,

@@ -97,7 +97,8 @@ router.patch("/:id/reinvite", requireAuth, requireAdmin, async (req, res) => {
 
     await sendActivationEmail({ to: rows[0].email, name: rows[0].name, token });
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Server error" });
   }
 });
