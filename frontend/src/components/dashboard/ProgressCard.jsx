@@ -27,10 +27,11 @@ export default function ProgressCard({ stats }) {
   const total = Object.values(enquiries).reduce((a, b) => a + b, 0) || 1;
 
   const statuses = [
-    { label: "New", key: "new", color: C.blueLight },
-    { label: "In Progress", key: "in-progress", color: C.teal },
-    { label: "Quoted", key: "quoted", color: C.orange },
-    { label: "Won", key: "won", color: C.green },
+    { label: "Open", key: "open", color: C.blueLight },
+    { label: "Discussion", key: "first_level_discussion", color: C.teal },
+    { label: "Kick Off", key: "kick_off", color: C.orange },
+    { label: "Agreement", key: "agreement", color: "#8b5cf6" },
+    { label: "Client", key: "client", color: C.green },
     { label: "Lost", key: "lost", color: C.red },
   ];
 

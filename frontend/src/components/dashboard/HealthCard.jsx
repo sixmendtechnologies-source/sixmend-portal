@@ -3,7 +3,7 @@ import { C } from "../../utils/colors";
 
 export default function HealthCard({ stats }) {
   const totalEnquiries = Object.values(stats?.enquiries || {}).reduce((a, b) => a + b, 0);
-  const wonEnquiries = stats?.enquiries?.won || 0;
+  const wonEnquiries = stats?.enquiries?.client || 0;
   const totalExpenses = stats?.expenses?.total || 0;
 
   const rows = [

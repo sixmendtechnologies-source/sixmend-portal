@@ -8,14 +8,14 @@ router.get("/stats", requireAuth, async (req, res) => {
   try {
     const [clients, enquiries, expenses, projectValue, payments] = await Promise.all([
       pool.query("SELECT COUNT(*) FROM clients"),
-      pool.query("SELECT status, COUNT(*) as count FROM enquiries GROUP BY status"),
+      pool.query("SELECT stage, COUNT(*) as count FROM enquiries GROUP BY stage"),
       pool.query("SELECT SUM(amount) as total, category, SUM(amount) as cat_total FROM expenses GROUP BY category"),
       pool.query("SELECT COALESCE(SUM(total_value), 0) as total FROM clients WHERE total_value IS NOT NULL"),
       pool.query("SELECT status, COALESCE(SUM(amount), 0) as total FROM client_payments GROUP BY status"),
     ]);
 
     const enquiryStats = {};
-    enquiries.rows.forEach((r) => { enquiryStats[r.status] = parseInt(r.count); });
+    enquiries.rows.forEach((r) => { enquiryStats[r.stage] = parseInt(r.count); });
 
     const expenseByCategory = {};
     let totalExpenses = 0;

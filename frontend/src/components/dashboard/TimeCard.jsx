@@ -4,15 +4,15 @@ import { C } from "../../utils/colors";
 export default function TimeCard({ stats }) {
   const enquiries = stats?.enquiries || {};
   const total = Object.values(enquiries).reduce((a, b) => a + b, 0) || 1;
-  const won = enquiries.won || 0;
-  const inProgress = enquiries["in-progress"] || 0;
+  const won = enquiries.client || 0;
+  const inProgress = (enquiries.first_level_discussion || 0) + (enquiries.kick_off || 0) + (enquiries.agreement || 0);
   const winPct = Math.round((won / total) * 100);
   const activePct = Math.round((inProgress / total) * 100);
 
   const rows = [
     { label: "Win Rate", pct: winPct, color: C.green },
     { label: "Active Rate", pct: activePct, color: C.blueLight },
-    { label: "Completion", pct: Math.round(((won) / total) * 100), color: C.teal },
+    { label: "Completion", pct: winPct, color: C.teal },
   ];
 
   return (

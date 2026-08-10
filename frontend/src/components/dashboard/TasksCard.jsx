@@ -5,10 +5,11 @@ import { C } from "../../utils/colors";
 export default function TasksCard({ stats }) {
   const enquiries = stats?.enquiries || {};
   const data = [
-    { name: "New", value: enquiries.new || 0, color: C.gray },
-    { name: "In Progress", value: enquiries["in-progress"] || 0, color: C.teal },
-    { name: "Quoted", value: enquiries.quoted || 0, color: C.orange },
-    { name: "Won", value: enquiries.won || 0, color: C.green },
+    { name: "Open", value: enquiries.open || 0, color: C.gray },
+    { name: "Discussion", value: enquiries.first_level_discussion || 0, color: C.teal },
+    { name: "Kick Off", value: enquiries.kick_off || 0, color: C.orange },
+    { name: "Agreement", value: enquiries.agreement || 0, color: "#8b5cf6" },
+    { name: "Client", value: enquiries.client || 0, color: C.green },
     { name: "Lost", value: enquiries.lost || 0, color: C.red },
   ].filter((d) => d.value > 0);
 
@@ -23,9 +24,10 @@ export default function TasksCard({ stats }) {
       <CardHeader title="Enquiries" />
       <div className="flex items-center gap-3 text-[11px] mb-2 flex-wrap" style={{ color: C.textMuted }}>
         {[
-          { name: "New", color: C.gray },
-          { name: "In Progress", color: C.teal },
-          { name: "Won", color: C.green },
+          { name: "Open", color: C.gray },
+          { name: "Discussion", color: C.teal },
+          { name: "Kick Off", color: C.orange },
+          { name: "Client", color: C.green },
           { name: "Lost", color: C.red },
         ].map((d) => (
           <span key={d.name} className="flex items-center gap-1">

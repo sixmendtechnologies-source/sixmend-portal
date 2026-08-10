@@ -41,3 +41,68 @@ ALTER TABLE expenses  ADD COLUMN IF NOT EXISTS custom_data JSONB NOT NULL DEFAUL
 -- System / built-in field control
 ALTER TABLE custom_fields ADD COLUMN IF NOT EXISTS is_system BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE custom_fields ADD COLUMN IF NOT EXISTS visible   BOOLEAN NOT NULL DEFAULT true;
+
+-- Client total project value
+ALTER TABLE clients
+  ADD COLUMN IF NOT EXISTS total_value      DECIMAL(12,2),
+  ADD COLUMN IF NOT EXISTS total_value_note TEXT;
+
+-- Client phases (tasks)
+CREATE TABLE IF NOT EXISTS client_phases (
+  id          SERIAL PRIMARY KEY,
+  client_id   INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  title       VARCHAR(200) NOT NULL,
+  description TEXT,
+  status      VARCHAR(20) NOT NULL DEFAULT 'todo',
+  start_date  DATE,
+  end_date    DATE,
+  position    INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Phase time logs
+CREATE TABLE IF NOT EXISTS phase_time_logs (
+  id          SERIAL PRIMARY KEY,
+  phase_id    INTEGER NOT NULL REFERENCES client_phases(id) ON DELETE CASCADE,
+  message     TEXT NOT NULL,
+  created_by  VARCHAR(100),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Client payments
+CREATE TABLE IF NOT EXISTS client_payments (
+  id                   SERIAL PRIMARY KEY,
+  client_id            INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  title                VARCHAR(200) NOT NULL,
+  amount               DECIMAL(12,2) NOT NULL,
+  payment_date         DATE,
+  status               VARCHAR(20) NOT NULL DEFAULT 'pending',
+  notes                TEXT,
+  mode                 VARCHAR(50),
+  invoice_number       VARCHAR(100),
+  invoice_generated_at TIMESTAMPTZ,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Client documents
+CREATE TABLE IF NOT EXISTS client_documents (
+  id          SERIAL PRIMARY KEY,
+  client_id   INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  name        VARCHAR(200) NOT NULL,
+  file_url    TEXT,
+  file_data   TEXT,
+  file_name   VARCHAR(200),
+  uploaded_by VARCHAR(100),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Client comments
+CREATE TABLE IF NOT EXISTS client_comments (
+  id         SERIAL PRIMARY KEY,
+  client_id  INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  author     VARCHAR(100),
+  body       TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
