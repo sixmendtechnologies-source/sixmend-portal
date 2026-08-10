@@ -194,6 +194,7 @@ export default function EnquiryDetail() {
         <div className="grid grid-cols-2 gap-x-8 gap-y-5">
           <DetailField label="Description" value={enquiry.description} full />
           <DetailField label="Source" value={enquiry.source} />
+          <DetailField label="Contact Name" value={enquiry.contact_name} />
           <DetailField label="Contact Number" value={enquiry.contact_number} />
           <DetailField label="Gmail" value={enquiry.gmail} />
           <DetailField label="Client" value={enquiry.client_name} />
