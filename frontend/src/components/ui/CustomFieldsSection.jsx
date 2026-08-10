@@ -10,7 +10,7 @@ export default function CustomFieldsSection({ module, values = {}, onChange }) {
   useEffect(() => {
     setLoading(true);
     api.get(`/custom-fields?module=${module}`)
-      .then((r) => setFields(r.data))
+      .then((r) => setFields(r.data.filter((f) => !f.is_system)))
       .catch(() => setFields([]))
       .finally(() => setLoading(false));
   }, [module]);
