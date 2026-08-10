@@ -20,12 +20,24 @@ function useFieldCfg(module) {
     api.get(`/custom-fields?module=${module}`)
       .then((r) => {
         const map = {};
-        r.data.filter((f) => f.is_system).forEach((f) => { map[f.field_key] = { visible: f.visible !== false, required: !!f.required }; });
+        r.data.filter((f) => f.is_system).forEach((f) => {
+          map[f.field_key] = {
+            visible: f.visible !== false,
+            required: !!f.required,
+            label: f.label,
+            options: Array.isArray(f.options) ? f.options : [],
+          };
+        });
         setCfg(map);
       })
       .catch(() => setCfg({}));
   }, [module]);
-  return (key, defReq = false) => ({ visible: cfg === null || (cfg[key]?.visible ?? true), required: cfg === null ? defReq : (cfg[key]?.required ?? defReq) });
+  return (key, defReq = false) => ({
+    visible: cfg === null || (cfg[key]?.visible ?? true),
+    required: cfg === null ? defReq : (cfg[key]?.required ?? defReq),
+    label: cfg?.[key]?.label ?? null,
+    options: cfg?.[key]?.options ?? [],
+  });
 }
 
 export default function Expenses() {
@@ -158,7 +170,7 @@ export default function Expenses() {
           onChange={(e) => setCategoryFilter(e.target.value)}
         >
           <option value="">All Categories</option>
-          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          {(fc("category").options.length > 0 ? fc("category").options : CATEGORIES).map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <select
           className="px-3 py-2 rounded-lg text-[13px] outline-none"
@@ -188,8 +200,8 @@ export default function Expenses() {
             {(fc("category", true).visible || fc("amount", true).visible) && (
               <div className="grid grid-cols-2 gap-3">
                 {fc("category", true).visible && (
-                  <Select label="Category" value={form.category} onChange={field("category")} required={fc("category", true).required}>
-                    {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  <Select label={fc("category", true).label || "Category"} value={form.category} onChange={field("category")} required={fc("category", true).required}>
+                    {(fc("category", true).options.length > 0 ? fc("category", true).options : CATEGORIES).map((c) => <option key={c} value={c}>{c}</option>)}
                   </Select>
                 )}
                 {fc("amount", true).visible && <Input label="Amount (₹)" type="number" value={form.amount} onChange={field("amount")} required={fc("amount", true).required} placeholder="0.00" />}

@@ -31,12 +31,19 @@ function useFieldCfg(module) {
     api.get(`/custom-fields?module=${module}`)
       .then((r) => {
         const map = {};
-        r.data.filter((f) => f.is_system).forEach((f) => { map[f.field_key] = { visible: f.visible !== false, required: !!f.required }; });
+        r.data.filter((f) => f.is_system).forEach((f) => {
+          map[f.field_key] = { visible: f.visible !== false, required: !!f.required, label: f.label, options: Array.isArray(f.options) ? f.options : [] };
+        });
         setCfg(map);
       })
       .catch(() => setCfg({}));
   }, [module]);
-  return (key, defReq = false) => ({ visible: cfg === null || (cfg[key]?.visible ?? true), required: cfg === null ? defReq : (cfg[key]?.required ?? defReq) });
+  return (key, defReq = false) => ({
+    visible: cfg === null || (cfg[key]?.visible ?? true),
+    required: cfg === null ? defReq : (cfg[key]?.required ?? defReq),
+    label: cfg?.[key]?.label ?? null,
+    options: cfg?.[key]?.options ?? [],
+  });
 }
 
 export default function Enquiries() {
@@ -210,9 +217,9 @@ export default function Enquiries() {
             {(fc("source", true).visible || fc("contact_name").visible) && (
               <div className="grid grid-cols-2 gap-3">
                 {fc("source", true).visible && (
-                  <Select label="Source" value={form.source || ""} onChange={field("source")} required={fc("source", true).required}>
+                  <Select label={fc("source", true).label || "Source"} value={form.source || ""} onChange={field("source")} required={fc("source", true).required}>
                     <option value="">Select source</option>
-                    {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    {(fc("source", true).options.length > 0 ? fc("source", true).options : SOURCES).map((s) => <option key={s} value={s}>{s}</option>)}
                   </Select>
                 )}
                 {fc("contact_name").visible && <Input label="Contact Name" value={form.contact_name || ""} onChange={field("contact_name")} required={fc("contact_name").required} placeholder="Full name" />}

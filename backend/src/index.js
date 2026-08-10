@@ -65,7 +65,7 @@ async function seedAdmin() {
 const SYSTEM_FIELDS = [
   { module: "enquiries", field_key: "title",          label: "Subject",        type: "text",     required: true,  position: 0 },
   { module: "enquiries", field_key: "description",    label: "Description",    type: "textarea", required: true,  position: 1 },
-  { module: "enquiries", field_key: "source",         label: "Source",         type: "select",   required: true,  position: 2 },
+  { module: "enquiries", field_key: "source",         label: "Source",         type: "select",   required: true,  position: 2, options: ["MechBook","Stepney","Sixmend","CookBy","General"] },
   { module: "enquiries", field_key: "contact_name",   label: "Contact Name",   type: "text",     required: false, position: 3 },
   { module: "enquiries", field_key: "contact_number", label: "Contact Number", type: "text",     required: true,  position: 4 },
   { module: "enquiries", field_key: "gmail",          label: "Gmail",          type: "text",     required: true,  position: 5 },
@@ -80,7 +80,7 @@ const SYSTEM_FIELDS = [
   { module: "clients",   field_key: "status",         label: "Status",         type: "select",   required: false, position: 5 },
   { module: "clients",   field_key: "notes",          label: "Notes",          type: "textarea", required: false, position: 6 },
   { module: "expenses",  field_key: "title",          label: "Title",          type: "text",     required: true,  position: 0 },
-  { module: "expenses",  field_key: "category",       label: "Category",       type: "select",   required: true,  position: 1 },
+  { module: "expenses",  field_key: "category",       label: "Category",       type: "select",   required: true,  position: 1, options: ["Materials","Labor","Equipment","Travel","Other"] },
   { module: "expenses",  field_key: "amount",         label: "Amount (₹)",     type: "number",   required: true,  position: 2 },
   { module: "expenses",  field_key: "expense_date",   label: "Date",           type: "date",     required: true,  position: 3 },
   { module: "expenses",  field_key: "description",    label: "Notes",          type: "textarea", required: false, position: 4 },
@@ -90,11 +90,13 @@ const SYSTEM_FIELDS = [
 async function seedSystemFields() {
   try {
     for (const f of SYSTEM_FIELDS) {
+      const opts = f.options ? JSON.stringify(f.options) : null;
       await pool.query(
-        `INSERT INTO custom_fields (module, label, field_key, type, required, position, is_system, visible)
-         VALUES ($1,$2,$3,$4,$5,$6,true,true)
-         ON CONFLICT (module, field_key) DO NOTHING`,
-        [f.module, f.label, f.field_key, f.type, f.required, f.position]
+        `INSERT INTO custom_fields (module, label, field_key, type, required, position, is_system, visible, options)
+         VALUES ($1,$2,$3,$4,$5,$6,true,true,$7)
+         ON CONFLICT (module, field_key) DO UPDATE SET
+           options = CASE WHEN custom_fields.options IS NULL THEN EXCLUDED.options ELSE custom_fields.options END`,
+        [f.module, f.label, f.field_key, f.type, f.required, f.position, opts]
       );
     }
     console.log("System fields seeded");

@@ -231,12 +231,12 @@ function FieldUpdateTab() {
           <Toggle value={!!f.required} onChange={() => {}} />
           <span className="text-[11px]" style={{ color: C.textMuted }}>Required</span>
         </label>
-        {!f.is_system && (
-          <div className="flex items-center gap-2">
-            <button onClick={() => openEdit(f)} style={{ color: C.textMuted }}><Pencil size={13} /></button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => openEdit(f)} style={{ color: C.textMuted }}><Pencil size={13} /></button>
+          {!f.is_system && (
             <button onClick={() => setDeleteId(f.id)} style={{ color: C.red }}><Trash2 size={13} /></button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
@@ -302,9 +302,13 @@ function FieldUpdateTab() {
         </div>
       )}
 
-      {/* Add / Edit modal (custom fields only) */}
+      {/* Add / Edit modal */}
       {modal === "form" && (
-        <Modal title={editId ? "Edit Custom Field" : "Add Custom Field"} onClose={() => setModal(null)} width="440px">
+        <Modal
+          title={!editId ? "Add Custom Field" : isSystem ? `Edit: ${form.label}` : "Edit Custom Field"}
+          onClose={() => setModal(null)}
+          width="440px"
+        >
           <form onSubmit={handleSave} className="flex flex-col gap-4">
             <Input
               label="Field Label"
@@ -313,14 +317,27 @@ function FieldUpdateTab() {
               required
               placeholder="e.g. Project URL"
             />
-            <Select label="Field Type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value, options: [] })}>
-              {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </Select>
 
+            {/* Type: editable for custom, read-only badge for system */}
+            {isSystem ? (
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: C.textMuted }}>Field Type</label>
+                <div className="flex items-center gap-2">
+                  <Badge value={form.type} />
+                  <span className="text-[11px]" style={{ color: C.textMuted }}>(type cannot be changed for built-in fields)</span>
+                </div>
+              </div>
+            ) : (
+              <Select label="Field Type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value, options: [] })}>
+                {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </Select>
+            )}
+
+            {/* Options builder — for select type (both custom and system) */}
             {form.type === "select" && (
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: C.textMuted }}>
-                  Options {editId && form.options.length > 0 && <span className="normal-case font-normal">(click to edit)</span>}
+                  Options {form.options.length > 0 && <span className="normal-case font-normal">(click an option to edit it)</span>}
                 </label>
                 <div className="flex gap-2 mb-2">
                   <input

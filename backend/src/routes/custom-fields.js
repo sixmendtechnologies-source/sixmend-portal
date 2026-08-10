@@ -68,20 +68,21 @@ router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
     const { rows: existing } = await pool.query("SELECT * FROM custom_fields WHERE id=$1", [req.params.id]);
     if (!existing[0]) return res.status(404).json({ error: "Not found" });
 
+    const { label, type, required, options, visible } = req.body;
+    if (!label) return res.status(400).json({ error: "Label is required" });
+
+    const optionsValue = Array.isArray(options) && options.length > 0 ? JSON.stringify(options) : null;
+
     if (existing[0].is_system) {
-      // System fields: only required and visible can change
-      const { required, visible } = req.body;
+      // System fields: allow label, options, required, visible — but NOT type or field_key
       const { rows } = await pool.query(
-        "UPDATE custom_fields SET required=$1, visible=$2 WHERE id=$3 RETURNING *",
-        [!!required, visible !== false, req.params.id]
+        `UPDATE custom_fields SET label=$1, options=$2, required=$3, visible=$4 WHERE id=$5 RETURNING *`,
+        [label, optionsValue, !!required, visible !== false, req.params.id]
       );
       return res.json(rows[0]);
     }
 
-    const { label, type, required, options, visible } = req.body;
-    if (!label) return res.status(400).json({ error: "Label is required" });
     if (type && !VALID_TYPES.includes(type)) return res.status(400).json({ error: "Invalid field type" });
-    const optionsValue = Array.isArray(options) && options.length > 0 ? JSON.stringify(options) : null;
     const { rows } = await pool.query(
       `UPDATE custom_fields SET label=$1, type=$2, required=$3, options=$4, visible=$5 WHERE id=$6 RETURNING *`,
       [label, type || "text", !!required, optionsValue, visible !== false, req.params.id]
