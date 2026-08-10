@@ -117,7 +117,7 @@ function FieldUpdateTab() {
 
   const openAdd = () => { setForm(EMPTY_FIELD); setEditId(null); setOptionInput(""); setModal("form"); };
   const openEdit = (f) => {
-    setForm({ label: f.label, type: f.type, required: f.required, options: f.options || [] });
+    setForm({ label: f.label, type: f.type, required: !!f.required, options: Array.isArray(f.options) ? f.options : [] });
     setEditId(f.id);
     setOptionInput("");
     setModal("form");
@@ -262,7 +262,7 @@ function FieldUpdateTab() {
             {form.type === "select" && (
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: C.textMuted }}>
-                  Options
+                  Options {editId && form.options.length > 0 && <span className="normal-case font-normal">(click an option to edit it)</span>}
                 </label>
                 <div className="flex gap-2 mb-2">
                   <input
@@ -283,8 +283,15 @@ function FieldUpdateTab() {
                       className="flex items-center gap-1 px-2 py-1 rounded text-[11px]"
                       style={{ background: "var(--badge-teal-bg)", color: C.teal }}
                     >
-                      {opt}
-                      <button type="button" onClick={() => removeOption(opt)} className="hover:opacity-70">
+                      <button
+                        type="button"
+                        title="Click to edit this option"
+                        className="hover:underline"
+                        onClick={() => { setOptionInput(opt); removeOption(opt); }}
+                      >
+                        {opt}
+                      </button>
+                      <button type="button" onClick={() => removeOption(opt)} className="hover:opacity-70 ml-0.5">
                         <X size={10} />
                       </button>
                     </span>
@@ -294,18 +301,25 @@ function FieldUpdateTab() {
             )}
 
             {/* Required toggle */}
-            <label className="flex items-center gap-3 cursor-pointer">
+            <label
+              className="flex items-center gap-3 cursor-pointer select-none"
+              onClick={() => setForm({ ...form, required: !form.required })}
+            >
               <div
-                className="w-9 h-5 rounded-full relative transition-colors"
+                className="w-9 h-5 rounded-full relative transition-colors flex-shrink-0"
                 style={{ background: form.required ? C.green : C.border }}
-                onClick={() => setForm({ ...form, required: !form.required })}
               >
                 <div
                   className="w-3.5 h-3.5 bg-white rounded-full absolute top-0.5 transition-all"
                   style={{ left: form.required ? "18px" : "2px" }}
                 />
               </div>
-              <span className="text-[13px]" style={{ color: C.textPrimary }}>Required field</span>
+              <span className="text-[13px]" style={{ color: C.textPrimary }}>
+                Required field
+                <span className="ml-1 text-[11px]" style={{ color: C.textMuted }}>
+                  {form.required ? "(mandatory)" : "(optional)"}
+                </span>
+              </span>
             </label>
 
             <div className="flex justify-end gap-2 pt-1">

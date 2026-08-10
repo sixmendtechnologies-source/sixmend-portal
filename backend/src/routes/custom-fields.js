@@ -48,13 +48,15 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
   );
 
   try {
+    const optionsValue = Array.isArray(options) && options.length > 0 ? JSON.stringify(options) : null;
     const { rows } = await pool.query(
       `INSERT INTO custom_fields (module, label, field_key, type, options, required, position)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [module, label, field_key, type || "text", options ? JSON.stringify(options) : null, !!required, maxRows[0].next_pos]
+      [module, label, field_key, type || "text", optionsValue, !!required, maxRows[0].next_pos]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
+    console.error("Error creating custom field:", err);
     if (err.code === "23505") return res.status(400).json({ error: `A field with key "${field_key}" already exists in this module` });
     res.status(500).json({ error: "Server error" });
   }
@@ -64,15 +66,18 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
 router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
   const { label, type, required, options } = req.body;
   if (!label) return res.status(400).json({ error: "Label is required" });
+  if (type && !VALID_TYPES.includes(type)) return res.status(400).json({ error: "Invalid field type" });
   try {
+    const optionsValue = Array.isArray(options) && options.length > 0 ? JSON.stringify(options) : null;
     const { rows } = await pool.query(
       `UPDATE custom_fields SET label=$1, type=$2, required=$3, options=$4
        WHERE id=$5 RETURNING *`,
-      [label, type || "text", !!required, options ? JSON.stringify(options) : null, req.params.id]
+      [label, type || "text", !!required, optionsValue, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: "Not found" });
     res.json(rows[0]);
-  } catch {
+  } catch (err) {
+    console.error("Error updating custom field:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
