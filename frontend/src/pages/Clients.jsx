@@ -12,8 +12,23 @@ import CustomFieldsSection from "../components/ui/CustomFieldsSection";
 
 const EMPTY = { name: "", company: "", email: "", phone: "", address: "", status: "prospect", notes: "", custom_data: {} };
 
+function useFieldCfg(module) {
+  const [cfg, setCfg] = useState(null);
+  useEffect(() => {
+    api.get(`/custom-fields?module=${module}`)
+      .then((r) => {
+        const map = {};
+        r.data.filter((f) => f.is_system).forEach((f) => { map[f.field_key] = { visible: f.visible !== false, required: !!f.required }; });
+        setCfg(map);
+      })
+      .catch(() => setCfg({}));
+  }, [module]);
+  return (key, defReq = false) => ({ visible: cfg === null || (cfg[key]?.visible ?? true), required: cfg === null ? defReq : (cfg[key]?.required ?? defReq) });
+}
+
 export default function Clients() {
   const navigate = useNavigate();
+  const fc = useFieldCfg("clients");
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -132,21 +147,27 @@ export default function Clients() {
       {(modal === "add" || modal === "edit") && (
         <Modal title={modal === "add" ? "Add Client" : "Edit Client"} onClose={() => setModal(null)}>
           <form onSubmit={handleSave} className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Name" value={form.name} onChange={field("name")} required placeholder="Full name" />
-              <Input label="Company" value={form.company || ""} onChange={field("company")} placeholder="Company name" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Email" type="email" value={form.email || ""} onChange={field("email")} placeholder="email@example.com" />
-              <Input label="Phone" value={form.phone || ""} onChange={field("phone")} placeholder="+1 234 567 8900" />
-            </div>
-            <Input label="Address" value={form.address || ""} onChange={field("address")} placeholder="Street, City, Country" />
-            <Select label="Status" value={form.status} onChange={field("status")}>
-              <option value="prospect">Prospect</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </Select>
-            <Textarea label="Notes" value={form.notes || ""} onChange={field("notes")} placeholder="Any additional notes…" />
+            {(fc("name", true).visible || fc("company").visible) && (
+              <div className="grid grid-cols-2 gap-3">
+                {fc("name", true).visible && <Input label="Name" value={form.name} onChange={field("name")} required={fc("name", true).required} placeholder="Full name" />}
+                {fc("company").visible && <Input label="Company" value={form.company || ""} onChange={field("company")} required={fc("company").required} placeholder="Company name" />}
+              </div>
+            )}
+            {(fc("email").visible || fc("phone").visible) && (
+              <div className="grid grid-cols-2 gap-3">
+                {fc("email").visible && <Input label="Email" type="email" value={form.email || ""} onChange={field("email")} required={fc("email").required} placeholder="email@example.com" />}
+                {fc("phone").visible && <Input label="Phone" value={form.phone || ""} onChange={field("phone")} required={fc("phone").required} placeholder="+1 234 567 8900" />}
+              </div>
+            )}
+            {fc("address").visible && <Input label="Address" value={form.address || ""} onChange={field("address")} required={fc("address").required} placeholder="Street, City, Country" />}
+            {fc("status").visible && (
+              <Select label="Status" value={form.status} onChange={field("status")} required={fc("status").required}>
+                <option value="prospect">Prospect</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </Select>
+            )}
+            {fc("notes").visible && <Textarea label="Notes" value={form.notes || ""} onChange={field("notes")} required={fc("notes").required} placeholder="Any additional notes…" />}
             <CustomFieldsSection
               module="clients"
               values={form.custom_data || {}}

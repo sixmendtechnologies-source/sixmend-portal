@@ -14,7 +14,22 @@ const EMPTY = { title: "", category: "Materials", amount: "", expense_date: TODA
 
 const CATEGORIES = ["Materials", "Labor", "Equipment", "Travel", "Other"];
 
+function useFieldCfg(module) {
+  const [cfg, setCfg] = useState(null);
+  useEffect(() => {
+    api.get(`/custom-fields?module=${module}`)
+      .then((r) => {
+        const map = {};
+        r.data.filter((f) => f.is_system).forEach((f) => { map[f.field_key] = { visible: f.visible !== false, required: !!f.required }; });
+        setCfg(map);
+      })
+      .catch(() => setCfg({}));
+  }, [module]);
+  return (key, defReq = false) => ({ visible: cfg === null || (cfg[key]?.visible ?? true), required: cfg === null ? defReq : (cfg[key]?.required ?? defReq) });
+}
+
 export default function Expenses() {
+  const fc = useFieldCfg("expenses");
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -169,22 +184,30 @@ export default function Expenses() {
       {(modal === "add" || modal === "edit") && (
         <Modal title={modal === "add" ? "Add Expense" : "Edit Expense"} onClose={() => setModal(null)}>
           <form onSubmit={handleSave} className="flex flex-col gap-4">
-            <Input label="Title" value={form.title} onChange={field("title")} required placeholder="Expense description" />
-            <div className="grid grid-cols-2 gap-3">
-              <Select label="Category" value={form.category} onChange={field("category")} required>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </Select>
-              <Input label="Amount (₹)" type="number" value={form.amount} onChange={field("amount")} required placeholder="0.00" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Date" type="date" value={form.expense_date} onChange={field("expense_date")} required />
-              <Select label="Status" value={form.status} onChange={field("status")}>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </Select>
-            </div>
-            <Textarea label="Notes" value={form.description || ""} onChange={field("description")} placeholder="Additional notes…" />
+            {fc("title", true).visible && <Input label="Title" value={form.title} onChange={field("title")} required={fc("title", true).required} placeholder="Expense description" />}
+            {(fc("category", true).visible || fc("amount", true).visible) && (
+              <div className="grid grid-cols-2 gap-3">
+                {fc("category", true).visible && (
+                  <Select label="Category" value={form.category} onChange={field("category")} required={fc("category", true).required}>
+                    {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </Select>
+                )}
+                {fc("amount", true).visible && <Input label="Amount (₹)" type="number" value={form.amount} onChange={field("amount")} required={fc("amount", true).required} placeholder="0.00" />}
+              </div>
+            )}
+            {(fc("expense_date", true).visible || fc("status").visible) && (
+              <div className="grid grid-cols-2 gap-3">
+                {fc("expense_date", true).visible && <Input label="Date" type="date" value={form.expense_date} onChange={field("expense_date")} required={fc("expense_date", true).required} />}
+                {fc("status").visible && (
+                  <Select label="Status" value={form.status} onChange={field("status")} required={fc("status").required}>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </Select>
+                )}
+              </div>
+            )}
+            {fc("description").visible && <Textarea label="Notes" value={form.description || ""} onChange={field("description")} required={fc("description").required} placeholder="Additional notes…" />}
             <CustomFieldsSection
               module="expenses"
               values={form.custom_data || {}}

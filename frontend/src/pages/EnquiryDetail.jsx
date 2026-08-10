@@ -6,6 +6,14 @@ import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import { C } from "../utils/colors";
 
+function useCustomFields(module) {
+  const [fields, setFields] = useState([]);
+  useEffect(() => {
+    api.get(`/custom-fields?module=${module}`).then((r) => setFields(r.data)).catch(() => {});
+  }, [module]);
+  return fields;
+}
+
 const STAGES = [
   { key: "open", label: "Open" },
   { key: "first_level_discussion", label: "First Level Discussion" },
@@ -31,6 +39,7 @@ export default function EnquiryDetail() {
   const [enquiry, setEnquiry] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const customFields = useCustomFields("enquiries");
 
   useEffect(() => {
     api.get(`/enquiries/${id}`)
@@ -212,6 +221,20 @@ export default function EnquiryDetail() {
             label="Last Updated"
             value={new Date(enquiry.updated_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
           />
+          {customFields.length > 0 && enquiry.custom_data && Object.keys(enquiry.custom_data).length > 0 && (
+            <>
+              <div className="col-span-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
+                <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>Additional Fields</div>
+              </div>
+              {customFields.map((f) => (
+                <DetailField
+                  key={f.id}
+                  label={f.label}
+                  value={enquiry.custom_data?.[f.field_key] || null}
+                />
+              ))}
+            </>
+          )}
         </div>
       </div>
     </div>

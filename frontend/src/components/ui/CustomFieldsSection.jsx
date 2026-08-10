@@ -5,12 +5,22 @@ import { C } from "../../utils/colors";
 
 export default function CustomFieldsSection({ module, values = {}, onChange }) {
   const [fields, setFields] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     api.get(`/custom-fields?module=${module}`)
       .then((r) => setFields(r.data))
-      .catch(() => {});
+      .catch(() => setFields([]))
+      .finally(() => setLoading(false));
   }, [module]);
+
+  if (loading) return (
+    <div className="flex items-center gap-2 py-1" style={{ color: C.textMuted }}>
+      <div className="w-3 h-3 border border-current rounded-full animate-spin" style={{ borderTopColor: "transparent" }} />
+      <span className="text-[12px]">Loading custom fields…</span>
+    </div>
+  );
 
   if (fields.length === 0) return null;
 

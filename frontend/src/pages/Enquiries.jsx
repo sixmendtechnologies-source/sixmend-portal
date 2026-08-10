@@ -25,8 +25,23 @@ const EMPTY = {
   custom_data: {},
 };
 
+function useFieldCfg(module) {
+  const [cfg, setCfg] = useState(null);
+  useEffect(() => {
+    api.get(`/custom-fields?module=${module}`)
+      .then((r) => {
+        const map = {};
+        r.data.filter((f) => f.is_system).forEach((f) => { map[f.field_key] = { visible: f.visible !== false, required: !!f.required }; });
+        setCfg(map);
+      })
+      .catch(() => setCfg({}));
+  }, [module]);
+  return (key, defReq = false) => ({ visible: cfg === null || (cfg[key]?.visible ?? true), required: cfg === null ? defReq : (cfg[key]?.required ?? defReq) });
+}
+
 export default function Enquiries() {
   const navigate = useNavigate();
+  const fc = useFieldCfg("enquiries");
   const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -190,28 +205,38 @@ export default function Enquiries() {
           width="540px"
         >
           <form onSubmit={handleSave} className="flex flex-col gap-4">
-            <Input label="Subject" value={form.title} onChange={field("title")} required placeholder="Enquiry subject" />
-            <Textarea label="Description" value={form.description || ""} onChange={field("description")} required placeholder="Describe the enquiry…" rows={3} />
-            <div className="grid grid-cols-2 gap-3">
-              <Select label="Source" value={form.source || ""} onChange={field("source")} required>
-                <option value="">Select source</option>
-                {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </Select>
-              <Input label="Contact Name" value={form.contact_name || ""} onChange={field("contact_name")} placeholder="Full name" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Contact Number" value={form.contact_number || ""} onChange={field("contact_number")} required placeholder="+91 98000 00000" />
-              <Input label="Gmail" type="email" value={form.gmail || ""} onChange={field("gmail")} required placeholder="contact@gmail.com" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Select label="Priority" value={form.priority} onChange={field("priority")}>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </Select>
-              <Input label="Value (₹)" type="number" value={form.value} onChange={field("value")} placeholder="0.00" />
-            </div>
-            <Input label="Assigned To" value={form.assigned_to || ""} onChange={field("assigned_to")} placeholder="Team member name" />
+            {fc("title", true).visible && <Input label="Subject" value={form.title} onChange={field("title")} required={fc("title", true).required} placeholder="Enquiry subject" />}
+            {fc("description", true).visible && <Textarea label="Description" value={form.description || ""} onChange={field("description")} required={fc("description", true).required} placeholder="Describe the enquiry…" rows={3} />}
+            {(fc("source", true).visible || fc("contact_name").visible) && (
+              <div className="grid grid-cols-2 gap-3">
+                {fc("source", true).visible && (
+                  <Select label="Source" value={form.source || ""} onChange={field("source")} required={fc("source", true).required}>
+                    <option value="">Select source</option>
+                    {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </Select>
+                )}
+                {fc("contact_name").visible && <Input label="Contact Name" value={form.contact_name || ""} onChange={field("contact_name")} required={fc("contact_name").required} placeholder="Full name" />}
+              </div>
+            )}
+            {(fc("contact_number", true).visible || fc("gmail", true).visible) && (
+              <div className="grid grid-cols-2 gap-3">
+                {fc("contact_number", true).visible && <Input label="Contact Number" value={form.contact_number || ""} onChange={field("contact_number")} required={fc("contact_number", true).required} placeholder="+91 98000 00000" />}
+                {fc("gmail", true).visible && <Input label="Gmail" type="email" value={form.gmail || ""} onChange={field("gmail")} required={fc("gmail", true).required} placeholder="contact@gmail.com" />}
+              </div>
+            )}
+            {(fc("priority").visible || fc("value").visible) && (
+              <div className="grid grid-cols-2 gap-3">
+                {fc("priority").visible && (
+                  <Select label="Priority" value={form.priority} onChange={field("priority")} required={fc("priority").required}>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </Select>
+                )}
+                {fc("value").visible && <Input label="Value (₹)" type="number" value={form.value} onChange={field("value")} required={fc("value").required} placeholder="0.00" />}
+              </div>
+            )}
+            {fc("assigned_to").visible && <Input label="Assigned To" value={form.assigned_to || ""} onChange={field("assigned_to")} required={fc("assigned_to").required} placeholder="Team member name" />}
             <CustomFieldsSection
               module="enquiries"
               values={form.custom_data || {}}

@@ -64,17 +64,28 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
 
 // Update field — admin only
 router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
-  const { label, type, required, options } = req.body;
-  if (!label) return res.status(400).json({ error: "Label is required" });
-  if (type && !VALID_TYPES.includes(type)) return res.status(400).json({ error: "Invalid field type" });
   try {
+    const { rows: existing } = await pool.query("SELECT * FROM custom_fields WHERE id=$1", [req.params.id]);
+    if (!existing[0]) return res.status(404).json({ error: "Not found" });
+
+    if (existing[0].is_system) {
+      // System fields: only required and visible can change
+      const { required, visible } = req.body;
+      const { rows } = await pool.query(
+        "UPDATE custom_fields SET required=$1, visible=$2 WHERE id=$3 RETURNING *",
+        [!!required, visible !== false, req.params.id]
+      );
+      return res.json(rows[0]);
+    }
+
+    const { label, type, required, options, visible } = req.body;
+    if (!label) return res.status(400).json({ error: "Label is required" });
+    if (type && !VALID_TYPES.includes(type)) return res.status(400).json({ error: "Invalid field type" });
     const optionsValue = Array.isArray(options) && options.length > 0 ? JSON.stringify(options) : null;
     const { rows } = await pool.query(
-      `UPDATE custom_fields SET label=$1, type=$2, required=$3, options=$4
-       WHERE id=$5 RETURNING *`,
-      [label, type || "text", !!required, optionsValue, req.params.id]
+      `UPDATE custom_fields SET label=$1, type=$2, required=$3, options=$4, visible=$5 WHERE id=$6 RETURNING *`,
+      [label, type || "text", !!required, optionsValue, visible !== false, req.params.id]
     );
-    if (!rows[0]) return res.status(404).json({ error: "Not found" });
     res.json(rows[0]);
   } catch (err) {
     console.error("Error updating custom field:", err);
@@ -82,11 +93,13 @@ router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// Delete field — admin only
+// Delete field — admin only (system fields cannot be deleted)
 router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { rowCount } = await pool.query("DELETE FROM custom_fields WHERE id=$1", [req.params.id]);
-    if (!rowCount) return res.status(404).json({ error: "Not found" });
+    const { rows } = await pool.query("SELECT is_system FROM custom_fields WHERE id=$1", [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    if (rows[0].is_system) return res.status(400).json({ error: "Built-in fields cannot be deleted" });
+    await pool.query("DELETE FROM custom_fields WHERE id=$1", [req.params.id]);
     res.json({ success: true });
   } catch {
     res.status(500).json({ error: "Server error" });

@@ -62,8 +62,50 @@ async function seedAdmin() {
   }
 }
 
+const SYSTEM_FIELDS = [
+  { module: "enquiries", field_key: "title",          label: "Subject",        type: "text",     required: true,  position: 0 },
+  { module: "enquiries", field_key: "description",    label: "Description",    type: "textarea", required: true,  position: 1 },
+  { module: "enquiries", field_key: "source",         label: "Source",         type: "select",   required: true,  position: 2 },
+  { module: "enquiries", field_key: "contact_name",   label: "Contact Name",   type: "text",     required: false, position: 3 },
+  { module: "enquiries", field_key: "contact_number", label: "Contact Number", type: "text",     required: true,  position: 4 },
+  { module: "enquiries", field_key: "gmail",          label: "Gmail",          type: "text",     required: true,  position: 5 },
+  { module: "enquiries", field_key: "priority",       label: "Priority",       type: "select",   required: false, position: 6 },
+  { module: "enquiries", field_key: "value",          label: "Value (₹)",      type: "number",   required: false, position: 7 },
+  { module: "enquiries", field_key: "assigned_to",    label: "Assigned To",    type: "text",     required: false, position: 8 },
+  { module: "clients",   field_key: "name",           label: "Name",           type: "text",     required: true,  position: 0 },
+  { module: "clients",   field_key: "company",        label: "Company",        type: "text",     required: false, position: 1 },
+  { module: "clients",   field_key: "email",          label: "Email",          type: "text",     required: false, position: 2 },
+  { module: "clients",   field_key: "phone",          label: "Phone",          type: "text",     required: false, position: 3 },
+  { module: "clients",   field_key: "address",        label: "Address",        type: "text",     required: false, position: 4 },
+  { module: "clients",   field_key: "status",         label: "Status",         type: "select",   required: false, position: 5 },
+  { module: "clients",   field_key: "notes",          label: "Notes",          type: "textarea", required: false, position: 6 },
+  { module: "expenses",  field_key: "title",          label: "Title",          type: "text",     required: true,  position: 0 },
+  { module: "expenses",  field_key: "category",       label: "Category",       type: "select",   required: true,  position: 1 },
+  { module: "expenses",  field_key: "amount",         label: "Amount (₹)",     type: "number",   required: true,  position: 2 },
+  { module: "expenses",  field_key: "expense_date",   label: "Date",           type: "date",     required: true,  position: 3 },
+  { module: "expenses",  field_key: "description",    label: "Notes",          type: "textarea", required: false, position: 4 },
+  { module: "expenses",  field_key: "status",         label: "Status",         type: "select",   required: false, position: 5 },
+];
+
+async function seedSystemFields() {
+  try {
+    for (const f of SYSTEM_FIELDS) {
+      await pool.query(
+        `INSERT INTO custom_fields (module, label, field_key, type, required, position, is_system, visible)
+         VALUES ($1,$2,$3,$4,$5,$6,true,true)
+         ON CONFLICT (module, field_key) DO NOTHING`,
+        [f.module, f.label, f.field_key, f.type, f.required, f.position]
+      );
+    }
+    console.log("System fields seeded");
+  } catch (err) {
+    console.error("System fields seed error:", err.message);
+  }
+}
+
 app.listen(PORT, async () => {
   console.log(`Backend running on port ${PORT}`);
   await runMigrations();
   await seedAdmin();
+  await seedSystemFields();
 });

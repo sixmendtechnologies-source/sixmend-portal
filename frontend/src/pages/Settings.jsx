@@ -92,15 +92,31 @@ const FIELD_TYPES = [
   { value: "textarea", label: "Long Text" },
 ];
 
-const EMPTY_FIELD = { label: "", type: "text", required: false, options: [] };
+const EMPTY_FIELD = { label: "", type: "text", required: false, visible: true, options: [] };
+
+function Toggle({ value, onChange }) {
+  return (
+    <div
+      className="w-9 h-5 rounded-full relative transition-colors flex-shrink-0 cursor-pointer"
+      style={{ background: value ? C.green : C.border }}
+      onClick={onChange}
+    >
+      <div
+        className="w-3.5 h-3.5 bg-white rounded-full absolute top-0.5 transition-all"
+        style={{ left: value ? "18px" : "2px" }}
+      />
+    </div>
+  );
+}
 
 function FieldUpdateTab() {
   const [module, setModule] = useState("enquiries");
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [modal, setModal] = useState(null); // "add" | "edit"
+  const [modal, setModal] = useState(null);
   const [form, setForm] = useState(EMPTY_FIELD);
   const [editId, setEditId] = useState(null);
+  const [isSystem, setIsSystem] = useState(false);
   const [saving, setSaving] = useState(false);
   const [optionInput, setOptionInput] = useState("");
   const [deleteId, setDeleteId] = useState(null);
@@ -115,10 +131,20 @@ function FieldUpdateTab() {
 
   useEffect(() => { fetchFields(module); }, [module]);
 
-  const openAdd = () => { setForm(EMPTY_FIELD); setEditId(null); setOptionInput(""); setModal("form"); };
+  const openAdd = () => {
+    setForm(EMPTY_FIELD); setEditId(null); setIsSystem(false); setOptionInput(""); setModal("form");
+  };
+
   const openEdit = (f) => {
-    setForm({ label: f.label, type: f.type, required: !!f.required, options: Array.isArray(f.options) ? f.options : [] });
+    setForm({
+      label: f.label,
+      type: f.type,
+      required: !!f.required,
+      visible: f.visible !== false,
+      options: Array.isArray(f.options) ? f.options : [],
+    });
     setEditId(f.id);
+    setIsSystem(!!f.is_system);
     setOptionInput("");
     setModal("form");
   };
@@ -134,7 +160,7 @@ function FieldUpdateTab() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (form.type === "select" && form.options.length === 0) {
+    if (!isSystem && form.type === "select" && form.options.length === 0) {
       alert("Add at least one option for Dropdown fields");
       return;
     }
@@ -164,13 +190,64 @@ function FieldUpdateTab() {
     }
   };
 
+  const systemFields = fields.filter((f) => f.is_system);
+  const customFields = fields.filter((f) => !f.is_system);
+
+  const FieldRow = ({ f }) => (
+    <div
+      className="flex items-center gap-3 px-4 py-3 rounded-xl"
+      style={{
+        background: C.card,
+        border: `1px solid ${C.border}`,
+        opacity: f.visible === false ? 0.5 : 1,
+      }}
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[13px] font-medium" style={{ color: C.textPrimary }}>{f.label}</span>
+          <code className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: C.border, color: C.textMuted }}>{f.field_key}</code>
+          <Badge value={f.type} />
+          {f.is_system && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: "var(--badge-blue-bg, #1e3a5f)", color: C.blueLight }}>
+              Built-in
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-4 flex-shrink-0">
+        <label className="flex items-center gap-1.5 cursor-pointer select-none" onClick={() => {
+          api.put(`/custom-fields/${f.id}`, { ...f, visible: !f.visible, required: f.required })
+            .then(() => fetchFields(module))
+            .catch(() => alert("Error updating"));
+        }}>
+          <Toggle value={f.visible !== false} onChange={() => {}} />
+          <span className="text-[11px]" style={{ color: C.textMuted }}>Visible</span>
+        </label>
+        <label className="flex items-center gap-1.5 cursor-pointer select-none" onClick={() => {
+          api.put(`/custom-fields/${f.id}`, { ...f, required: !f.required, visible: f.visible !== false })
+            .then(() => fetchFields(module))
+            .catch(() => alert("Error updating"));
+        }}>
+          <Toggle value={!!f.required} onChange={() => {}} />
+          <span className="text-[11px]" style={{ color: C.textMuted }}>Required</span>
+        </label>
+        {!f.is_system && (
+          <div className="flex items-center gap-2">
+            <button onClick={() => openEdit(f)} style={{ color: C.textMuted }}><Pencil size={13} /></button>
+            <button onClick={() => setDeleteId(f.id)} style={{ color: C.red }}><Trash2 size={13} /></button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-[15px] font-semibold mb-0.5" style={{ color: C.textPrimary }}>Field Update</h2>
           <p className="text-[12px]" style={{ color: C.textMuted }}>
-            Add custom fields to module forms. They appear in the Add/Edit modal of each section.
+            Toggle visibility and required status of built-in fields, or add custom fields.
           </p>
         </div>
         <Button onClick={openAdd}>
@@ -183,14 +260,9 @@ function FieldUpdateTab() {
         {FIELD_MODULES.map(({ key, label }) => {
           const active = module === key;
           return (
-            <button
-              key={key}
-              onClick={() => setModule(key)}
+            <button key={key} onClick={() => setModule(key)}
               className="px-4 py-1.5 rounded-md text-[12px] font-medium transition-all"
-              style={{
-                background: active ? C.green : "transparent",
-                color: active ? "var(--btn-primary-text)" : C.textMuted,
-              }}
+              style={{ background: active ? C.green : "transparent", color: active ? "var(--btn-primary-text)" : C.textMuted }}
             >
               {label}
             </button>
@@ -198,54 +270,41 @@ function FieldUpdateTab() {
         })}
       </div>
 
-      {/* Fields list */}
       {loading ? (
         <div className="flex justify-center py-8">
           <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: C.green, borderTopColor: "transparent" }} />
         </div>
-      ) : fields.length === 0 ? (
-        <div
-          className="rounded-xl p-8 text-center"
-          style={{ background: C.card, border: `1px solid ${C.border}` }}
-        >
-          <p className="text-[13px]" style={{ color: C.textMuted }}>
-            No custom fields yet for <strong>{FIELD_MODULES.find((m) => m.key === module)?.label}</strong>.
-            Click <strong>Add Field</strong> to get started.
-          </p>
-        </div>
       ) : (
-        <Table
-          columns={[
-            { key: "label", label: "Field Label", render: (v) => <span className="font-medium" style={{ color: C.textPrimary }}>{v}</span> },
-            { key: "field_key", label: "Key", render: (v) => <code className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: C.border, color: C.textMuted }}>{v}</code> },
-            { key: "type", label: "Type", render: (v) => <Badge value={v} /> },
-            {
-              key: "options", label: "Options",
-              render: (v) => v?.length ? (
-                <span className="text-[11px]" style={{ color: C.textMuted }}>{v.join(", ")}</span>
-              ) : <span style={{ color: C.textMuted }}>—</span>,
-            },
-            {
-              key: "required", label: "Required",
-              render: (v) => <Badge value={v ? "yes" : "no"} />,
-            },
-            {
-              key: "actions", label: "",
-              render: (_, row) => (
-                <div className="flex items-center gap-2 justify-end">
-                  <button onClick={() => openEdit(row)} style={{ color: C.textMuted }}><Pencil size={13} /></button>
-                  <button onClick={() => setDeleteId(row.id)} style={{ color: C.red }}><Trash2 size={13} /></button>
-                </div>
-              ),
-            },
-          ]}
-          data={fields}
-        />
+        <div className="flex flex-col gap-4">
+          {/* Built-in fields */}
+          {systemFields.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <div className="text-[11px] font-semibold uppercase tracking-widest px-1" style={{ color: C.textMuted }}>Built-in Fields</div>
+              {systemFields.map((f) => <FieldRow key={f.id} f={f} />)}
+            </div>
+          )}
+
+          {/* Custom fields */}
+          <div className="flex flex-col gap-2">
+            {systemFields.length > 0 && (
+              <div className="text-[11px] font-semibold uppercase tracking-widest px-1" style={{ color: C.textMuted }}>Custom Fields</div>
+            )}
+            {customFields.length === 0 ? (
+              <div className="rounded-xl p-6 text-center" style={{ background: C.card, border: `1px dashed ${C.border}` }}>
+                <p className="text-[13px]" style={{ color: C.textMuted }}>
+                  No custom fields yet. Click <strong>Add Field</strong> to add one.
+                </p>
+              </div>
+            ) : (
+              customFields.map((f) => <FieldRow key={f.id} f={f} />)
+            )}
+          </div>
+        </div>
       )}
 
-      {/* Add / Edit modal */}
+      {/* Add / Edit modal (custom fields only) */}
       {modal === "form" && (
-        <Modal title={editId ? "Edit Field" : "Add Custom Field"} onClose={() => setModal(null)} width="440px">
+        <Modal title={editId ? "Edit Custom Field" : "Add Custom Field"} onClose={() => setModal(null)} width="440px">
           <form onSubmit={handleSave} className="flex flex-col gap-4">
             <Input
               label="Field Label"
@@ -258,16 +317,14 @@ function FieldUpdateTab() {
               {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </Select>
 
-            {/* Options builder — only for select */}
             {form.type === "select" && (
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: C.textMuted }}>
-                  Options {editId && form.options.length > 0 && <span className="normal-case font-normal">(click an option to edit it)</span>}
+                  Options {editId && form.options.length > 0 && <span className="normal-case font-normal">(click to edit)</span>}
                 </label>
                 <div className="flex gap-2 mb-2">
                   <input
-                    type="text"
-                    value={optionInput}
+                    type="text" value={optionInput}
                     onChange={(e) => setOptionInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addOption(); } }}
                     placeholder="Type an option and press Enter"
@@ -278,47 +335,19 @@ function FieldUpdateTab() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {form.options.map((opt) => (
-                    <span
-                      key={opt}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[11px]"
-                      style={{ background: "var(--badge-teal-bg)", color: C.teal }}
-                    >
-                      <button
-                        type="button"
-                        title="Click to edit this option"
-                        className="hover:underline"
-                        onClick={() => { setOptionInput(opt); removeOption(opt); }}
-                      >
-                        {opt}
-                      </button>
-                      <button type="button" onClick={() => removeOption(opt)} className="hover:opacity-70 ml-0.5">
-                        <X size={10} />
-                      </button>
+                    <span key={opt} className="flex items-center gap-1 px-2 py-1 rounded text-[11px]" style={{ background: "var(--badge-teal-bg)", color: C.teal }}>
+                      <button type="button" className="hover:underline" onClick={() => { setOptionInput(opt); removeOption(opt); }}>{opt}</button>
+                      <button type="button" onClick={() => removeOption(opt)} className="hover:opacity-70 ml-0.5"><X size={10} /></button>
                     </span>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Required toggle */}
-            <label
-              className="flex items-center gap-3 cursor-pointer select-none"
-              onClick={() => setForm({ ...form, required: !form.required })}
-            >
-              <div
-                className="w-9 h-5 rounded-full relative transition-colors flex-shrink-0"
-                style={{ background: form.required ? C.green : C.border }}
-              >
-                <div
-                  className="w-3.5 h-3.5 bg-white rounded-full absolute top-0.5 transition-all"
-                  style={{ left: form.required ? "18px" : "2px" }}
-                />
-              </div>
+            <label className="flex items-center gap-3 cursor-pointer select-none" onClick={() => setForm({ ...form, required: !form.required })}>
+              <Toggle value={form.required} onChange={() => {}} />
               <span className="text-[13px]" style={{ color: C.textPrimary }}>
-                Required field
-                <span className="ml-1 text-[11px]" style={{ color: C.textMuted }}>
-                  {form.required ? "(mandatory)" : "(optional)"}
-                </span>
+                Required field <span className="text-[11px]" style={{ color: C.textMuted }}>{form.required ? "(mandatory)" : "(optional)"}</span>
               </span>
             </label>
 
@@ -333,7 +362,7 @@ function FieldUpdateTab() {
       {deleteId && (
         <Modal title="Delete Field" onClose={() => setDeleteId(null)} width="360px">
           <p className="text-[13px]" style={{ color: C.textMuted }}>
-            Deleting this field will not remove existing data stored against it. The field will no longer appear in the form.
+            Deleting this field will not remove existing data stored against it.
           </p>
           <div className="flex justify-end gap-2 pt-3">
             <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>

@@ -250,10 +250,19 @@ ${form.notes ? `<div style="margin-bottom:20px">
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
+function useCustomFields(module) {
+  const [fields, setFields] = useState([]);
+  useEffect(() => {
+    api.get(`/custom-fields?module=${module}`).then((r) => setFields(r.data)).catch(() => {});
+  }, [module]);
+  return fields;
+}
+
 export default function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const customFields = useCustomFields("clients");
 
   const [client,    setClient]    = useState(null);
   const [phases,    setPhases]    = useState([]);
@@ -534,6 +543,16 @@ export default function ClientDetail() {
           <InfoField label="Phone"   value={client.phone} />
           <InfoField label="Address" value={client.address} />
           {client.notes && <InfoField label="Notes" value={client.notes} full />}
+          {customFields.length > 0 && client.custom_data && Object.keys(client.custom_data).length > 0 && (
+            <>
+              <div className="col-span-2 pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
+                <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>Additional Fields</div>
+              </div>
+              {customFields.map((f) => (
+                <InfoField key={f.id} label={f.label} value={client.custom_data?.[f.field_key] || null} />
+              ))}
+            </>
+          )}
         </div>
         <div className="grid grid-cols-4 gap-3">
           <StatCard label="Total Tasks" value={phases.length} />
