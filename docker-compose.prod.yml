@@ -14,6 +14,7 @@ services:
       - ./backend/src/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
     networks:
       - internal
+      - proxy-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
@@ -36,6 +37,7 @@ services:
         condition: service_healthy
     networks:
       - internal
+      - proxy-net
 
   frontend:
     image: ${FRONTEND_IMAGE:-sixportal-frontend:local}
