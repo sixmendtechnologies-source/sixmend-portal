@@ -314,10 +314,14 @@ export default function ClientDetail() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([
-      api.get(`/clients/${id}`).then((r) => setClient(r.data)),
-      fetchPhases(), fetchPayments(), fetchDocuments(), fetchComments(),
-    ]).catch(() => setClient(null)).finally(() => setLoading(false));
+    api.get(`/clients/${id}`)
+      .then((r) => setClient(r.data))
+      .catch(() => setClient(null))
+      .finally(() => setLoading(false));
+    fetchPhases();
+    fetchPayments();
+    fetchDocuments();
+    fetchComments();
   }, [id]);
 
   useEffect(() => {
