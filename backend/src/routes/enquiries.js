@@ -1,6 +1,7 @@
 import { Router } from "express";
 import pool from "../db/index.js";
 import { requireAuth } from "../middleware/auth.js";
+import { broadcast } from "./events.js";
 
 const router = Router();
 
@@ -63,6 +64,7 @@ router.post("/", requireAuth, async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,'new',$7,$8,$9,'open',$10) RETURNING *`,
       [title, description, source, contact_name || null, contact_number, gmail, priority || "medium", value || null, assigned_to || null, JSON.stringify(custom_data || {})]
     );
+    broadcast("enquiries");
     res.status(201).json(rows[0]);
   } catch {
     res.status(500).json({ error: "Server error" });
@@ -80,6 +82,7 @@ router.put("/:id", requireAuth, async (req, res) => {
       [title, description, source, contact_name || null, contact_number, gmail, client_id || null, status || "new", priority || "medium", value || null, assigned_to || null, JSON.stringify(custom_data || {}), req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    broadcast("enquiries");
     res.json(rows[0]);
   } catch {
     res.status(500).json({ error: "Server error" });
@@ -97,6 +100,7 @@ router.patch("/:id/stage", requireAuth, async (req, res) => {
       [stage, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    broadcast("enquiries");
     res.json(rows[0]);
   } catch {
     res.status(500).json({ error: "Server error" });
@@ -106,6 +110,7 @@ router.patch("/:id/stage", requireAuth, async (req, res) => {
 router.delete("/:id", requireAuth, async (req, res) => {
   try {
     await pool.query("DELETE FROM enquiries WHERE id=$1", [req.params.id]);
+    broadcast("enquiries");
     res.json({ success: true });
   } catch {
     res.status(500).json({ error: "Server error" });

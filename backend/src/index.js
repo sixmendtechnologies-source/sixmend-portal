@@ -15,6 +15,7 @@ import clientDetailRoutes from "./routes/client-detail.js";
 import publicRoutes from "./routes/public.js";
 import userRoutes from "./routes/users.js";
 import customFieldRoutes from "./routes/custom-fields.js";
+import eventsRoutes from "./routes/events.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -33,6 +34,7 @@ app.use("/api/clients/:id", clientDetailRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/custom-fields", customFieldRoutes);
+app.use("/api/events", eventsRoutes);
 
 app.get("/api/health", (_, res) => res.json({ status: "ok" }));
 

@@ -12,11 +12,19 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchStats = () => {
     api.get("/dashboard/stats")
       .then((res) => setStats(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchStats(); }, []);
+
+  useEffect(() => {
+    const handler = () => fetchStats();
+    window.addEventListener("sixportal:update", handler);
+    return () => window.removeEventListener("sixportal:update", handler);
   }, []);
 
   if (loading) {

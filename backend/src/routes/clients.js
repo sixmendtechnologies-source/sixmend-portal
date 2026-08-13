@@ -1,6 +1,7 @@
 import { Router } from "express";
 import pool from "../db/index.js";
 import { requireAuth } from "../middleware/auth.js";
+import { broadcast } from "./events.js";
 
 const router = Router();
 
@@ -50,6 +51,7 @@ router.post("/", requireAuth, async (req, res) => {
       "INSERT INTO clients (name, company, email, phone, address, status, notes, custom_data) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *",
       [name, company, email, phone, address, status || "prospect", notes, JSON.stringify(custom_data || {})]
     );
+    broadcast("clients");
     res.status(201).json(rows[0]);
   } catch {
     res.status(500).json({ error: "Server error" });
@@ -66,6 +68,7 @@ router.put("/:id", requireAuth, async (req, res) => {
        total_value ?? null, total_value_note ?? null, JSON.stringify(custom_data || {}), req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    broadcast("clients");
     res.json(rows[0]);
   } catch {
     res.status(500).json({ error: "Server error" });
@@ -75,6 +78,7 @@ router.put("/:id", requireAuth, async (req, res) => {
 router.delete("/:id", requireAuth, async (req, res) => {
   try {
     await pool.query("DELETE FROM clients WHERE id=$1", [req.params.id]);
+    broadcast("clients");
     res.json({ success: true });
   } catch {
     res.status(500).json({ error: "Server error" });

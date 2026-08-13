@@ -75,6 +75,12 @@ export default function Enquiries() {
 
   useEffect(() => { fetchEnquiries(); }, [search, stageFilter, priorityFilter]);
 
+  useEffect(() => {
+    const handler = (e) => { if (e.detail.module === "enquiries") fetchEnquiries(); };
+    window.addEventListener("sixportal:update", handler);
+    return () => window.removeEventListener("sixportal:update", handler);
+  }, [search, stageFilter, priorityFilter]);
+
   const openAdd = () => { setForm(EMPTY); setModal("add"); };
   const openEdit = (row, e) => {
     e.stopPropagation();

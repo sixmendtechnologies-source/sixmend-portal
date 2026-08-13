@@ -50,6 +50,12 @@ export default function Clients() {
 
   useEffect(() => { fetchClients(); }, [search, statusFilter]);
 
+  useEffect(() => {
+    const handler = (e) => { if (e.detail.module === "clients") fetchClients(); };
+    window.addEventListener("sixportal:update", handler);
+    return () => window.removeEventListener("sixportal:update", handler);
+  }, [search, statusFilter]);
+
   const openAdd = () => { setForm(EMPTY); setModal("add"); };
   const openEdit = (row, e) => { e.stopPropagation(); setForm(row); setModal("edit"); };
 

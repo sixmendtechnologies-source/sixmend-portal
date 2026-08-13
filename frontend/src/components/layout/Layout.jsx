@@ -3,8 +3,10 @@ import { Outlet } from "react-router-dom";
 import TopNav from "./TopNav";
 import SideNav from "./SideNav";
 import { C } from "../../utils/colors";
+import useSSE from "../../hooks/useSSE";
 
 export default function Layout() {
+  useSSE();
   const [sidebarExpanded, setSidebarExpanded] = useState(
     () => localStorage.getItem("sidebar-expanded") === "true"
   );

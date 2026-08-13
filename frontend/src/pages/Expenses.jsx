@@ -65,6 +65,12 @@ export default function Expenses() {
 
   useEffect(() => { fetchExpenses(); }, [search, categoryFilter, statusFilter]);
 
+  useEffect(() => {
+    const handler = (e) => { if (e.detail.module === "expenses") fetchExpenses(); };
+    window.addEventListener("sixportal:update", handler);
+    return () => window.removeEventListener("sixportal:update", handler);
+  }, [search, categoryFilter, statusFilter]);
+
   const openAdd = () => { setForm(EMPTY); setModal("add"); };
   const openEdit = (row) => {
     setForm({
