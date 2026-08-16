@@ -106,3 +106,9 @@ CREATE TABLE IF NOT EXISTS client_comments (
   body       TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Invoice number sequence (required for invoice generation)
+CREATE SEQUENCE IF NOT EXISTS invoice_number_seq START 1;
+
+-- Expense type: debit (money out) or credit (money in)
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS type VARCHAR(10) NOT NULL DEFAULT 'debit';

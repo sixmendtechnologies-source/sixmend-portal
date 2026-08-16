@@ -7,7 +7,7 @@ const router = Router();
 
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const { search, category, status } = req.query;
+    const { search, category, status, type } = req.query;
     let query = "SELECT * FROM expenses WHERE 1=1";
     const params = [];
     if (search) {
@@ -22,6 +22,10 @@ router.get("/", requireAuth, async (req, res) => {
       params.push(status);
       query += ` AND status = $${params.length}`;
     }
+    if (type) {
+      params.push(type);
+      query += ` AND type = $${params.length}`;
+    }
     query += " ORDER BY expense_date DESC, created_at DESC";
     const { rows } = await pool.query(query, params);
     res.json(rows);
@@ -31,14 +35,14 @@ router.get("/", requireAuth, async (req, res) => {
 });
 
 router.post("/", requireAuth, async (req, res) => {
-  const { title, category, amount, expense_date, description, status, custom_data } = req.body;
+  const { title, category, amount, expense_date, description, status, type, custom_data } = req.body;
   if (!title || !category || !amount || !expense_date) {
     return res.status(400).json({ error: "Title, category, amount and date are required" });
   }
   try {
     const { rows } = await pool.query(
-      "INSERT INTO expenses (title, category, amount, expense_date, description, status, custom_data) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *",
-      [title, category, amount, expense_date, description, status || "pending", JSON.stringify(custom_data || {})]
+      "INSERT INTO expenses (title, category, amount, expense_date, description, status, type, custom_data) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *",
+      [title, category, amount, expense_date, description, status || "pending", type || "debit", JSON.stringify(custom_data || {})]
     );
     broadcast("expenses");
     res.status(201).json(rows[0]);
@@ -48,11 +52,11 @@ router.post("/", requireAuth, async (req, res) => {
 });
 
 router.put("/:id", requireAuth, async (req, res) => {
-  const { title, category, amount, expense_date, description, status, custom_data } = req.body;
+  const { title, category, amount, expense_date, description, status, type, custom_data } = req.body;
   try {
     const { rows } = await pool.query(
-      "UPDATE expenses SET title=$1,category=$2,amount=$3,expense_date=$4,description=$5,status=$6,custom_data=$7,updated_at=NOW() WHERE id=$8 RETURNING *",
-      [title, category, amount, expense_date, description, status, JSON.stringify(custom_data || {}), req.params.id]
+      "UPDATE expenses SET title=$1,category=$2,amount=$3,expense_date=$4,description=$5,status=$6,type=$7,custom_data=$8,updated_at=NOW() WHERE id=$9 RETURNING *",
+      [title, category, amount, expense_date, description, status, type || "debit", JSON.stringify(custom_data || {}), req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: "Not found" });
     broadcast("expenses");

@@ -10,7 +10,7 @@ import { C } from "../utils/colors";
 import CustomFieldsSection from "../components/ui/CustomFieldsSection";
 
 const TODAY = new Date().toISOString().slice(0, 10);
-const EMPTY = { title: "", category: "Materials", amount: "", expense_date: TODAY, description: "", status: "pending", custom_data: {} };
+const EMPTY = { title: "", category: "Materials", amount: "", expense_date: TODAY, description: "", status: "pending", type: "debit", custom_data: {} };
 
 const CATEGORIES = ["Materials", "Labor", "Equipment", "Travel", "Other"];
 
@@ -42,6 +42,7 @@ function useFieldCfg(module) {
 
 export default function Expenses() {
   const fc = useFieldCfg("expenses");
+  const [activeTab, setActiveTab] = useState("debit");
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -58,20 +59,21 @@ export default function Expenses() {
     if (search) params.set("search", search);
     if (categoryFilter) params.set("category", categoryFilter);
     if (statusFilter) params.set("status", statusFilter);
+    params.set("type", activeTab);
     api.get(`/expenses?${params}`)
       .then((r) => setExpenses(r.data))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchExpenses(); }, [search, categoryFilter, statusFilter]);
+  useEffect(() => { fetchExpenses(); }, [search, categoryFilter, statusFilter, activeTab]);
 
   useEffect(() => {
     const handler = (e) => { if (e.detail.module === "expenses") fetchExpenses(); };
     window.addEventListener("sixportal:update", handler);
     return () => window.removeEventListener("sixportal:update", handler);
-  }, [search, categoryFilter, statusFilter]);
+  }, [search, categoryFilter, statusFilter, activeTab]);
 
-  const openAdd = () => { setForm(EMPTY); setModal("add"); };
+  const openAdd = () => { setForm({ ...EMPTY, type: activeTab }); setModal("add"); };
   const openEdit = (row) => {
     setForm({
       ...row,
@@ -109,6 +111,7 @@ export default function Expenses() {
   const field = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
   const total = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+  const isDebit = activeTab === "debit";
 
   const columns = [
     { key: "id", label: "#", render: (v) => <span style={{ color: C.textMuted }}>#{v}</span> },
@@ -117,7 +120,11 @@ export default function Expenses() {
     {
       key: "amount",
       label: "Amount",
-      render: (v) => <span style={{ color: C.green, fontWeight: 600 }}>₹{parseFloat(v).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>,
+      render: (v) => (
+        <span style={{ color: isDebit ? C.red : C.green, fontWeight: 600 }}>
+          {isDebit ? "-" : "+"}₹{parseFloat(v).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+        </span>
+      ),
     },
     {
       key: "expense_date",
@@ -148,14 +155,33 @@ export default function Expenses() {
           <h1 className="text-[18px] font-semibold" style={{ color: C.textPrimary }}>Expenses</h1>
           {expenses.length > 0 && (
             <p className="text-[12px] mt-0.5" style={{ color: C.textMuted }}>
-              Total: <span style={{ color: C.green, fontWeight: 600 }}>₹{total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-              {" "}across {expenses.length} expense{expenses.length !== 1 ? "s" : ""}
+              Total: <span style={{ color: isDebit ? C.red : C.green, fontWeight: 600 }}>
+                {isDebit ? "-" : "+"}₹{total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </span>
+              {" "}across {expenses.length} record{expenses.length !== 1 ? "s" : ""}
             </p>
           )}
         </div>
         <Button onClick={openAdd}>
-          <span className="flex items-center gap-1.5"><Plus size={14} /> Add Expense</span>
+          <span className="flex items-center gap-1.5"><Plus size={14} /> Add {isDebit ? "Debit" : "Credit"}</span>
         </Button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center" style={{ borderBottom: `1px solid ${C.border}` }}>
+        {["debit", "credit"].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => { setActiveTab(tab); setCategoryFilter(""); setStatusFilter(""); setSearch(""); }}
+            className="px-5 py-2.5 text-[13px] font-medium relative capitalize transition-colors"
+            style={{ color: activeTab === tab ? C.textPrimary : C.textMuted }}
+          >
+            {tab === "debit" ? "Debit (Out)" : "Credit (In)"}
+            {activeTab === tab && (
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] rounded-t" style={{ background: tab === "debit" ? C.red : C.green }} />
+            )}
+          </button>
+        ))}
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
@@ -164,7 +190,7 @@ export default function Expenses() {
           <input
             className="w-full pl-9 pr-3 py-2 rounded-lg text-[13px] outline-none"
             style={{ background: C.card, border: `1px solid ${C.border}`, color: C.textPrimary }}
-            placeholder="Search expenses…"
+            placeholder={`Search ${activeTab}s…`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -200,9 +226,27 @@ export default function Expenses() {
       )}
 
       {(modal === "add" || modal === "edit") && (
-        <Modal title={modal === "add" ? "Add Expense" : "Edit Expense"} onClose={() => setModal(null)}>
+        <Modal title={modal === "add" ? `Add ${form.type === "debit" ? "Debit" : "Credit"}` : "Edit Expense"} onClose={() => setModal(null)}>
           <form onSubmit={handleSave} className="flex flex-col gap-4">
-            {fc("title", true).visible && <Input label="Title" value={form.title} onChange={field("title")} required={fc("title", true).required} placeholder="Expense description" />}
+            {/* Type selector */}
+            <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
+              {["debit", "credit"].map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setForm({ ...form, type: t })}
+                  className="flex-1 py-2 text-[13px] font-medium capitalize transition-colors"
+                  style={{
+                    background: form.type === t ? (t === "debit" ? C.red : C.green) : C.card,
+                    color: form.type === t ? "#fff" : C.textMuted,
+                  }}
+                >
+                  {t === "debit" ? "Debit (Out)" : "Credit (In)"}
+                </button>
+              ))}
+            </div>
+
+            {fc("title", true).visible && <Input label="Title" value={form.title} onChange={field("title")} required={fc("title", true).required} placeholder="Description" />}
             {(fc("category", true).visible || fc("amount", true).visible) && (
               <div className="grid grid-cols-2 gap-3">
                 {fc("category", true).visible && (
@@ -240,8 +284,8 @@ export default function Expenses() {
       )}
 
       {deleteId && (
-        <Modal title="Delete Expense" onClose={() => setDeleteId(null)} width="360px">
-          <p style={{ color: C.textMuted, fontSize: 13 }}>Are you sure you want to delete this expense?</p>
+        <Modal title="Delete Record" onClose={() => setDeleteId(null)} width="360px">
+          <p style={{ color: C.textMuted, fontSize: 13 }}>Are you sure you want to delete this record?</p>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
             <Button variant="danger" onClick={handleDelete}>Delete</Button>
