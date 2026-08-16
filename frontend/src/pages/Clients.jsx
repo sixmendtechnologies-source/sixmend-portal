@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Bell } from "lucide-react";
 import api from "../utils/api";
 import Table from "../components/ui/Table";
 import Modal from "../components/ui/Modal";
@@ -10,7 +10,7 @@ import { Input, Select, Textarea } from "../components/ui/Input";
 import { C } from "../utils/colors";
 import CustomFieldsSection from "../components/ui/CustomFieldsSection";
 
-const EMPTY = { name: "", company: "", email: "", phone: "", address: "", status: "prospect", notes: "", custom_data: {} };
+const EMPTY = { name: "", company: "", email: "", phone: "", address: "", status: "active", notes: "", custom_data: {} };
 
 function useFieldCfg(module) {
   const [cfg, setCfg] = useState(null);
@@ -94,6 +94,16 @@ export default function Clients() {
     { key: "phone", label: "Phone" },
     { key: "status", label: "Status", render: (v) => <Badge value={v} /> },
     {
+      key: "alert_count",
+      label: "Reminder",
+      align: "center",
+      render: (v) => (
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          {v > 0 && <Bell size={15} style={{ color: "#ef4444", animation: "bell-ring 1.2s ease-in-out infinite" }} />}
+        </div>
+      ),
+    },
+    {
       key: "actions",
       label: "",
       render: (_, row) => (
@@ -111,6 +121,19 @@ export default function Clients() {
 
   return (
     <div className="flex flex-col gap-4">
+      <style>{`
+        @keyframes bell-ring {
+          0%,100% { transform: rotate(0deg); }
+          10% { transform: rotate(18deg); }
+          20% { transform: rotate(-16deg); }
+          30% { transform: rotate(12deg); }
+          40% { transform: rotate(-10deg); }
+          50% { transform: rotate(6deg); }
+          60% { transform: rotate(-4deg); }
+          70% { transform: rotate(2deg); }
+          80% { transform: rotate(0deg); }
+        }
+      `}</style>
       <div className="flex items-center justify-between">
         <h1 className="text-[18px] font-semibold" style={{ color: C.textPrimary }}>Clients</h1>
         <Button onClick={openAdd}>

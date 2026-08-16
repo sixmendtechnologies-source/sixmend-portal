@@ -8,17 +8,23 @@ const router = Router();
 router.get("/", requireAuth, async (req, res) => {
   try {
     const { search, status } = req.query;
-    let query = "SELECT * FROM clients WHERE 1=1";
+    let query = `SELECT c.*,
+      (SELECT COUNT(*)::int FROM client_services s
+       WHERE s.client_id = c.id
+       AND s.status != 'cancelled'
+       AND s.renewal_date <= CURRENT_DATE + (s.reminder_days || ' days')::INTERVAL
+      ) AS alert_count
+      FROM clients c WHERE 1=1`;
     const params = [];
     if (search) {
       params.push(`%${search}%`);
-      query += ` AND (name ILIKE $${params.length} OR company ILIKE $${params.length} OR email ILIKE $${params.length})`;
+      query += ` AND (c.name ILIKE $${params.length} OR c.company ILIKE $${params.length} OR c.email ILIKE $${params.length})`;
     }
     if (status) {
       params.push(status);
-      query += ` AND status = $${params.length}`;
+      query += ` AND c.status = $${params.length}`;
     }
-    query += " ORDER BY created_at DESC";
+    query += " ORDER BY c.created_at DESC";
     const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch {
@@ -49,7 +55,7 @@ router.post("/", requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
       "INSERT INTO clients (name, company, email, phone, address, status, notes, custom_data) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *",
-      [name, company, email, phone, address, status || "prospect", notes, JSON.stringify(custom_data || {})]
+      [name, company, email, phone, address, status || "active", notes, JSON.stringify(custom_data || {})]
     );
     broadcast("clients");
     res.status(201).json(rows[0]);

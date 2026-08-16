@@ -231,4 +231,82 @@ router.delete("/comments/:commentId", requireAuth, async (req, res) => {
   } catch { res.status(500).json({ error: "Server error" }); }
 });
 
+// ─── Client Expenses ──────────────────────────────────────────────────────────
+
+router.get("/expenses", requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT * FROM expenses WHERE client_id=$1 ORDER BY expense_date DESC, created_at DESC",
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch { res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/expenses", requireAuth, async (req, res) => {
+  const { title, category, amount, expense_date, description, status, type } = req.body;
+  if (!title || !amount || !expense_date) return res.status(400).json({ error: "Title, amount and date required" });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO expenses (client_id, title, category, amount, expense_date, description, status, type)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [req.params.id, title, category || "Other", amount, expense_date, description || null, status || "pending", type || "debit"]
+    );
+    res.status(201).json(rows[0]);
+  } catch { res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/expenses/:expenseId", requireAuth, async (req, res) => {
+  try {
+    await pool.query("DELETE FROM expenses WHERE id=$1 AND client_id=$2", [req.params.expenseId, req.params.id]);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: "Server error" }); }
+});
+
+// ─── Services ────────────────────────────────────────────────────────────────
+
+router.get("/services", requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT * FROM client_services WHERE client_id=$1 ORDER BY renewal_date ASC",
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch { res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/services", requireAuth, async (req, res) => {
+  const { name, type, renewal_date, reminder_days, cost, status, notes } = req.body;
+  if (!name || !renewal_date) return res.status(400).json({ error: "Name and renewal date required" });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO client_services (client_id, name, type, renewal_date, reminder_days, cost, status, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [req.params.id, name, type || "other", renewal_date, reminder_days ?? 30, cost || null, status || "active", notes || null]
+    );
+    res.status(201).json(rows[0]);
+  } catch { res.status(500).json({ error: "Server error" }); }
+});
+
+router.put("/services/:serviceId", requireAuth, async (req, res) => {
+  const { name, type, renewal_date, reminder_days, cost, status, notes } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE client_services SET name=$1, type=$2, renewal_date=$3, reminder_days=$4,
+       cost=$5, status=$6, notes=$7, updated_at=NOW()
+       WHERE id=$8 AND client_id=$9 RETURNING *`,
+      [name, type || "other", renewal_date, reminder_days ?? 30, cost || null, status, notes || null, req.params.serviceId, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    res.json(rows[0]);
+  } catch { res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/services/:serviceId", requireAuth, async (req, res) => {
+  try {
+    await pool.query("DELETE FROM client_services WHERE id=$1 AND client_id=$2", [req.params.serviceId, req.params.id]);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: "Server error" }); }
+});
+
 export default router;

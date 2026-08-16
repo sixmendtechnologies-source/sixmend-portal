@@ -13,7 +13,7 @@ import { C } from "../utils/colors";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TABS = ["Overview", "Phase", "Payments", "Documents", "Comments"];
+const TABS = ["Overview", "Phase", "Payments", "Expenses", "Services", "Documents", "Comments"];
 
 const PHASE_COLS = [
   { key: "todo",       label: "To Do",      color: C.blueLight },
@@ -269,6 +269,8 @@ export default function ClientDetail() {
   const [payments,  setPayments]  = useState([]);
   const [documents, setDocuments] = useState([]);
   const [comments,  setComments]  = useState([]);
+  const [clientExpenses, setClientExpenses] = useState([]);
+  const [services,  setServices]  = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [tab,       setTab]       = useState("Overview");
   const [boardView, setBoardView] = useState(true);
@@ -300,6 +302,18 @@ export default function ClientDetail() {
   const [docForm,    setDocForm]    = useState(EMPTY_DOC);
   const [fileLabel,  setFileLabel]  = useState("");
 
+  // Expense modal
+  const [expModal,  setExpModal]  = useState(false);
+  const TODAY_STR = new Date().toISOString().slice(0, 10);
+  const EMPTY_EXP = { title: "", category: "Other", amount: "", expense_date: TODAY_STR, description: "", status: "pending", type: "debit" };
+  const [expForm,   setExpForm]   = useState(EMPTY_EXP);
+
+  // Service modal
+  const [svcModal,  setSvcModal]  = useState(null); // null | "add" | service object
+  const EMPTY_SVC = { name: "", type: "domain", renewal_date: "", reminder_days: "30", cost: "", status: "active", notes: "" };
+  const SVC_TYPES = ["domain", "ssl", "server", "mail", "other"];
+  const [svcForm,   setSvcForm]   = useState(EMPTY_SVC);
+
   // Comment
   const [commentText, setCommentText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -311,6 +325,8 @@ export default function ClientDetail() {
   const fetchPayments  = () => api.get(`/clients/${id}/payments`).then((r) => setPayments(r.data));
   const fetchDocuments = () => api.get(`/clients/${id}/documents`).then((r) => setDocuments(r.data));
   const fetchComments  = () => api.get(`/clients/${id}/comments`).then((r) => setComments(r.data));
+  const fetchClientExpenses = () => api.get(`/clients/${id}/expenses`).then((r) => setClientExpenses(r.data)).catch(() => {});
+  const fetchServices  = () => api.get(`/clients/${id}/services`).then((r) => setServices(r.data)).catch(() => {});
 
   useEffect(() => {
     setLoading(true);
@@ -322,6 +338,8 @@ export default function ClientDetail() {
     fetchPayments();
     fetchDocuments();
     fetchComments();
+    fetchClientExpenses();
+    fetchServices();
   }, [id]);
 
   useEffect(() => {
@@ -858,6 +876,208 @@ export default function ClientDetail() {
     </div>
   );
 
+  // ─── Client Expenses Tab ─────────────────────────────────────────────────────
+
+  const handleSaveExp = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.post(`/clients/${id}/expenses`, expForm);
+      setExpModal(false);
+      setExpForm(EMPTY_EXP);
+      fetchClientExpenses();
+    } catch (err) { alert(err.response?.data?.error || "Error saving"); }
+    finally { setSaving(false); }
+  };
+
+  const deleteClientExp = async (eid) => {
+    if (!confirm("Delete this expense?")) return;
+    try { await api.delete(`/clients/${id}/expenses/${eid}`); fetchClientExpenses(); }
+    catch { alert("Error deleting"); }
+  };
+
+  const EXPENSE_CATS = ["Materials", "Labor", "Equipment", "Travel", "Other"];
+
+  const renderClientExpenses = () => (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[13px]" style={{ color: C.textMuted }}>
+            {clientExpenses.length} record{clientExpenses.length !== 1 ? "s" : ""}
+            {clientExpenses.length > 0 && (
+              <> · Total: <span style={{ color: C.green, fontWeight: 600 }}>
+                ₹{clientExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0).toLocaleString("en-IN")}
+              </span></>
+            )}
+          </p>
+        </div>
+        <Button onClick={() => { setExpForm(EMPTY_EXP); setExpModal(true); }}>
+          <span className="flex items-center gap-1.5"><Plus size={14} /> Add Expense</span>
+        </Button>
+      </div>
+      {clientExpenses.length === 0 ? (
+        <p className="text-[13px] py-8 text-center" style={{ color: C.textMuted }}>No expenses yet.</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {clientExpenses.map((exp) => (
+            <div key={exp.id} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-medium truncate" style={{ color: C.textPrimary }}>{exp.title}</div>
+                <div className="text-[11px] mt-0.5 flex items-center gap-2" style={{ color: C.textMuted }}>
+                  <Badge value={exp.category?.toLowerCase()} />
+                  <span>{exp.expense_date ? new Date(exp.expense_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</span>
+                </div>
+              </div>
+              <span className="text-[14px] font-bold" style={{ color: C.red }}>
+                -₹{parseFloat(exp.amount).toLocaleString("en-IN")}
+              </span>
+              <Badge value={exp.status} />
+              <button onClick={() => deleteClientExp(exp.id)} style={{ color: C.red }}><Trash2 size={14} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+      {expModal && (
+        <Modal title="Add Expense" onClose={() => setExpModal(false)} width="480px">
+          <form onSubmit={handleSaveExp} className="flex flex-col gap-4">
+            <Input label="Title" value={expForm.title} onChange={(e) => setExpForm({ ...expForm, title: e.target.value })} required placeholder="Expense description" />
+            <div className="grid grid-cols-2 gap-3">
+              <Select label="Category" value={expForm.category} onChange={(e) => setExpForm({ ...expForm, category: e.target.value })}>
+                {EXPENSE_CATS.map((c) => <option key={c} value={c}>{c}</option>)}
+              </Select>
+              <Input label="Amount (₹)" type="number" value={expForm.amount} onChange={(e) => setExpForm({ ...expForm, amount: e.target.value })} required placeholder="0.00" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Date" type="date" value={expForm.expense_date} onChange={(e) => setExpForm({ ...expForm, expense_date: e.target.value })} required />
+              <Select label="Status" value={expForm.status} onChange={(e) => setExpForm({ ...expForm, status: e.target.value })}>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </Select>
+            </div>
+            <Textarea label="Notes" value={expForm.description || ""} onChange={(e) => setExpForm({ ...expForm, description: e.target.value })} placeholder="Additional notes…" />
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="secondary" onClick={() => setExpModal(false)}>Cancel</Button>
+              <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+
+  // ─── Services Tab ─────────────────────────────────────────────────────────────
+
+  const daysUntil = (dateStr) => {
+    if (!dateStr) return null;
+    return Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
+  };
+
+  const svcStatusColor = (svc) => {
+    const d = daysUntil(svc.renewal_date);
+    if (svc.status === "cancelled") return C.textMuted;
+    if (d === null || d < 0) return C.red;
+    if (d <= svc.reminder_days) return C.orange;
+    return C.green;
+  };
+
+  const svcBadgeLabel = (svc) => {
+    const d = daysUntil(svc.renewal_date);
+    if (svc.status === "cancelled") return "Cancelled";
+    if (d === null) return "—";
+    if (d < 0) return "Expired";
+    if (d === 0) return "Due today";
+    if (d <= svc.reminder_days) return `Due in ${d}d`;
+    return "Active";
+  };
+
+  const handleSaveSvc = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      if (svcModal === "add") await api.post(`/clients/${id}/services`, svcForm);
+      else await api.put(`/clients/${id}/services/${svcModal.id}`, svcForm);
+      setSvcModal(null);
+      fetchServices();
+    } catch (err) { alert(err.response?.data?.error || "Error saving"); }
+    finally { setSaving(false); }
+  };
+
+  const deleteSvc = async (sid) => {
+    if (!confirm("Delete this service?")) return;
+    try { await api.delete(`/clients/${id}/services/${sid}`); fetchServices(); }
+    catch { alert("Error deleting"); }
+  };
+
+  const renderServices = () => (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[13px]" style={{ color: C.textMuted }}>{services.length} service{services.length !== 1 ? "s" : ""}</p>
+        <Button onClick={() => { setSvcForm(EMPTY_SVC); setSvcModal("add"); }}>
+          <span className="flex items-center gap-1.5"><Plus size={14} /> Add Service</span>
+        </Button>
+      </div>
+      {services.length === 0 ? (
+        <p className="text-[13px] py-8 text-center" style={{ color: C.textMuted }}>No services yet.</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {services.map((svc) => {
+            const d = daysUntil(svc.renewal_date);
+            const color = svcStatusColor(svc);
+            return (
+              <div key={svc.id} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-medium truncate" style={{ color: C.textPrimary }}>{svc.name}</div>
+                  <div className="text-[11px] mt-0.5 flex items-center gap-2" style={{ color: C.textMuted }}>
+                    <span className="capitalize">{svc.type}</span>
+                    <span>·</span>
+                    <span>Renews {svc.renewal_date ? new Date(svc.renewal_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</span>
+                    {svc.cost && <><span>·</span><span>₹{parseFloat(svc.cost).toLocaleString("en-IN")}</span></>}
+                  </div>
+                </div>
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${color}22`, color }}>{svcBadgeLabel(svc)}</span>
+                <button onClick={() => { setSvcForm({ ...svc, renewal_date: svc.renewal_date?.slice(0, 10) || "", reminder_days: String(svc.reminder_days), cost: svc.cost || "" }); setSvcModal(svc); }} style={{ color: C.textMuted }}><Pencil size={14} /></button>
+                <button onClick={() => deleteSvc(svc.id)} style={{ color: C.red }}><Trash2 size={14} /></button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {svcModal && (
+        <Modal title={svcModal === "add" ? "Add Service" : "Edit Service"} onClose={() => setSvcModal(null)} width="480px">
+          <form onSubmit={handleSaveSvc} className="flex flex-col gap-4">
+            <Input label="Service Name" value={svcForm.name} onChange={(e) => setSvcForm({ ...svcForm, name: e.target.value })} required placeholder="e.g. example.com SSL" />
+            <div className="grid grid-cols-2 gap-3">
+              <Select label="Type" value={svcForm.type} onChange={(e) => setSvcForm({ ...svcForm, type: e.target.value })}>
+                <option value="domain">Domain</option>
+                <option value="ssl">SSL</option>
+                <option value="server">Server</option>
+                <option value="mail">Mail Account</option>
+                <option value="other">Other</option>
+              </Select>
+              <Select label="Status" value={svcForm.status} onChange={(e) => setSvcForm({ ...svcForm, status: e.target.value })}>
+                <option value="active">Active</option>
+                <option value="expired">Expired</option>
+                <option value="cancelled">Cancelled</option>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Renewal Date" type="date" value={svcForm.renewal_date} onChange={(e) => setSvcForm({ ...svcForm, renewal_date: e.target.value })} required />
+              <Input label="Remind (days before)" type="number" value={svcForm.reminder_days} onChange={(e) => setSvcForm({ ...svcForm, reminder_days: e.target.value })} placeholder="30" />
+            </div>
+            <Input label="Cost (₹)" type="number" value={svcForm.cost} onChange={(e) => setSvcForm({ ...svcForm, cost: e.target.value })} placeholder="Annual cost" />
+            <Textarea label="Notes" value={svcForm.notes || ""} onChange={(e) => setSvcForm({ ...svcForm, notes: e.target.value })} placeholder="Provider, login info, etc…" />
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="secondary" onClick={() => setSvcModal(null)}>Cancel</Button>
+              <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+
   const renderComments = () => (
     <div className="flex flex-col gap-3">
       {comments.length === 0 && (
@@ -947,6 +1167,8 @@ export default function ClientDetail() {
         {tab === "Overview"  && renderOverview()}
         {tab === "Phase"     && renderPhase()}
         {tab === "Payments"  && renderPayments()}
+        {tab === "Expenses"  && renderClientExpenses()}
+        {tab === "Services"  && renderServices()}
         {tab === "Documents" && renderDocuments()}
         {tab === "Comments"  && renderComments()}
       </div>

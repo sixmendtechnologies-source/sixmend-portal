@@ -112,3 +112,24 @@ CREATE SEQUENCE IF NOT EXISTS invoice_number_seq START 1;
 
 -- Expense type: debit (money out) or credit (money in)
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS type VARCHAR(10) NOT NULL DEFAULT 'debit';
+
+-- Client-linked expenses
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL;
+
+-- Service renewals per client
+CREATE TABLE IF NOT EXISTS client_services (
+  id            SERIAL PRIMARY KEY,
+  client_id     INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  name          VARCHAR(200) NOT NULL,
+  type          VARCHAR(50)  NOT NULL DEFAULT 'other',
+  renewal_date  DATE         NOT NULL,
+  reminder_days INT          NOT NULL DEFAULT 30,
+  cost          DECIMAL(12,2),
+  status        VARCHAR(20)  NOT NULL DEFAULT 'active',
+  notes         TEXT,
+  created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+-- Change default client status from prospect to active
+ALTER TABLE clients ALTER COLUMN status SET DEFAULT 'active';

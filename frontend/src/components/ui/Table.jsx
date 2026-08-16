@@ -9,8 +9,8 @@ export default function Table({ columns, data, onRowClick }) {
             {columns.map((col) => (
               <th
                 key={col.key}
-                className="px-4 py-3 text-left font-medium"
-                style={{ color: C.textMuted, whiteSpace: "nowrap" }}
+                className="px-4 py-3 font-medium"
+                style={{ color: C.textMuted, whiteSpace: "nowrap", textAlign: col.align || "left" }}
               >
                 {col.label}
               </th>
