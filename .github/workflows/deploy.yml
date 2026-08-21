@@ -8,10 +8,6 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: ap-south-1
-  ECR_REGISTRY: 555292118815.dkr.ecr.ap-south-1.amazonaws.com
-  BACKEND_REPO: backend
-  FRONTEND_REPO: frontend
   BACKEND_PROJECT: sixportal-be
   FRONTEND_PROJECT: sixportal-fe
   BACKEND_CONTAINER: sixportal-app
@@ -43,15 +39,15 @@ jobs:
         working-directory: backend
         run: npm ci
 
-  # ─── Job 2: Build both images and push to ECR ───────────────────────────────
-  docker:
-    name: Build & Push to ECR
+  # ─── Job 2: Build both images and push to GHCR ──────────────────────────────
+  build:
+    name: Build & Push to GHCR
     runs-on: ubuntu-latest
     needs: lint-build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
-      id-token: write
       contents: read
+      packages: write
     outputs:
       new-tag: ${{ steps.version.outputs.new_tag }}
       previous-tag: ${{ steps.version.outputs.previous_tag }}
@@ -59,34 +55,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Resolve next version
         id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Use frontend ECR repo as the version source of truth
-          LATEST=$(aws ecr describe-images \
-            --repository-name ${{ env.FRONTEND_REPO }} \
-            --region ${{ env.AWS_REGION }} \
-            --query 'imageDetails[].imageTags[]' \
-            --output text \
-            | tr '\t' '\n' \
-            | grep -E '^${{ env.FRONTEND_PROJECT }}-v[0-9]+\.[0-9]+\.[0-9]+$' \
-            | sort -V \
-            | tail -1)
-
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          PACKAGE_NAME="${{ env.FRONTEND_PROJECT }}"
           SENTINEL="${{ env.FRONTEND_PROJECT }}-v1.1.0"
+
+          LATEST=$(
+            (curl -sfL \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions" \
+              2>/dev/null ||
+            curl -sfL \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/orgs/${OWNER}/packages/container/${PACKAGE_NAME}/versions" \
+              2>/dev/null) \
+            | jq -r '.[].metadata.container.tags[]? // empty' \
+            | grep -E "^${PACKAGE_NAME}-v[0-9]+\.[0-9]+\.[0-9]+\$" \
+            | sort -V \
+            | tail -1 \
+            || true)
+
           LATEST=${LATEST:-$SENTINEL}
           echo "Current version: $LATEST"
 
-          VERSION="${LATEST#${{ env.FRONTEND_PROJECT }}-v}"
+          VERSION="${LATEST#${PACKAGE_NAME}-v}"
           IFS='.' read -r major minor patch <<< "$VERSION"
           patch=$((patch + 1))
           if [ "$patch" -ge 10 ]; then patch=1; minor=$((minor + 1)); fi
@@ -96,7 +101,7 @@ jobs:
 
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
           if [ "$LATEST" != "$SENTINEL" ]; then
-            echo "previous_tag=${LATEST#${{ env.FRONTEND_PROJECT }}-v}" >> $GITHUB_OUTPUT
+            echo "previous_tag=${LATEST#${PACKAGE_NAME}-v}" >> $GITHUB_OUTPUT
           else
             echo "previous_tag=" >> $GITHUB_OUTPUT
           fi
@@ -110,7 +115,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile.prod
           push: true
-          tags: ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:${{ env.BACKEND_PROJECT }}-${{ steps.version.outputs.new_tag }}
+          tags: ghcr.io/${{ github.repository_owner }}/${{ env.BACKEND_PROJECT }}:${{ env.BACKEND_PROJECT }}-${{ steps.version.outputs.new_tag }}
           provenance: false
           sbom: false
           cache-from: type=gha,scope=backend
@@ -122,7 +127,7 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile.prod
           push: true
-          tags: ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:${{ env.FRONTEND_PROJECT }}-${{ steps.version.outputs.new_tag }}
+          tags: ghcr.io/${{ github.repository_owner }}/${{ env.FRONTEND_PROJECT }}:${{ env.FRONTEND_PROJECT }}-${{ steps.version.outputs.new_tag }}
           provenance: false
           sbom: false
           cache-from: type=gha,scope=frontend
@@ -132,40 +137,35 @@ jobs:
   deploy:
     name: Deploy to VPS
     runs-on: ubuntu-latest
-    needs: docker
+    needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
-      id-token: write
       contents: read
+      packages: read
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Get ECR login token for server
-        id: ecr-token
+      - name: Get GHCR login token for server
+        id: ghcr-token
         run: |
-          TOKEN=$(aws ecr get-login-password --region ${{ env.AWS_REGION }})
+          TOKEN="${{ secrets.GITHUB_TOKEN }}"
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
       - name: Prepare image references
         id: images
         run: |
-          NEW_TAG="${{ needs.docker.outputs.new-tag }}"
-          PREV_TAG="${{ needs.docker.outputs.previous-tag }}"
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          NEW_TAG="${{ needs.build.outputs.new-tag }}"
+          PREV_TAG="${{ needs.build.outputs.previous-tag }}"
 
-          echo "be_image=${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:${{ env.BACKEND_PROJECT }}-${NEW_TAG}" >> $GITHUB_OUTPUT
-          echo "fe_image=${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:${{ env.FRONTEND_PROJECT }}-${NEW_TAG}" >> $GITHUB_OUTPUT
+          echo "be_image=ghcr.io/${OWNER}/${{ env.BACKEND_PROJECT }}:${{ env.BACKEND_PROJECT }}-${NEW_TAG}" >> $GITHUB_OUTPUT
+          echo "fe_image=ghcr.io/${OWNER}/${{ env.FRONTEND_PROJECT }}:${{ env.FRONTEND_PROJECT }}-${NEW_TAG}" >> $GITHUB_OUTPUT
 
           if [ -n "$PREV_TAG" ]; then
-            echo "prev_be_image=${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:${{ env.BACKEND_PROJECT }}-v${PREV_TAG}" >> $GITHUB_OUTPUT
-            echo "prev_fe_image=${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:${{ env.FRONTEND_PROJECT }}-v${PREV_TAG}" >> $GITHUB_OUTPUT
+            echo "prev_be_image=ghcr.io/${OWNER}/${{ env.BACKEND_PROJECT }}:${{ env.BACKEND_PROJECT }}-v${PREV_TAG}" >> $GITHUB_OUTPUT
+            echo "prev_fe_image=ghcr.io/${OWNER}/${{ env.FRONTEND_PROJECT }}:${{ env.FRONTEND_PROJECT }}-v${PREV_TAG}" >> $GITHUB_OUTPUT
           else
             echo "prev_be_image=" >> $GITHUB_OUTPUT
             echo "prev_fe_image=" >> $GITHUB_OUTPUT
@@ -193,14 +193,14 @@ jobs:
       - name: Deploy via SSH with rollback
         uses: appleboy/ssh-action@v1
         env:
-          ECR_TOKEN: ${{ steps.ecr-token.outputs.token }}
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
+          GHCR_TOKEN: ${{ steps.ghcr-token.outputs.token }}
+          GHCR_USER: ${{ github.repository_owner }}
           BE_IMAGE: ${{ steps.images.outputs.be_image }}
           FE_IMAGE: ${{ steps.images.outputs.fe_image }}
           PREV_BE_IMAGE: ${{ steps.images.outputs.prev_be_image }}
           PREV_FE_IMAGE: ${{ steps.images.outputs.prev_fe_image }}
-          NEW_TAG: ${{ needs.docker.outputs.new-tag }}
-          PREV_TAG: ${{ needs.docker.outputs.previous-tag }}
+          NEW_TAG: ${{ needs.build.outputs.new-tag }}
+          PREV_TAG: ${{ needs.build.outputs.previous-tag }}
           BACKEND_CONTAINER: ${{ env.BACKEND_CONTAINER }}
           FRONTEND_CONTAINER: ${{ env.FRONTEND_CONTAINER }}
           DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
@@ -209,35 +209,38 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          envs: ECR_TOKEN,ECR_REGISTRY,BE_IMAGE,FE_IMAGE,PREV_BE_IMAGE,PREV_FE_IMAGE,NEW_TAG,PREV_TAG,BACKEND_CONTAINER,FRONTEND_CONTAINER,DEPLOY_DIR
+          envs: GHCR_TOKEN,GHCR_USER,BE_IMAGE,FE_IMAGE,PREV_BE_IMAGE,PREV_FE_IMAGE,NEW_TAG,PREV_TAG,BACKEND_CONTAINER,FRONTEND_CONTAINER,DEPLOY_DIR
           script: |
             log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
             log "Deploying $NEW_TAG  (rollback target: ${PREV_TAG:-none})"
 
-            echo "$ECR_TOKEN" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+            echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin
 
             cd "${DEPLOY_DIR/#\~/$HOME}"
 
-            # Create proxy network if not present (needed by nginx-proxy)
+            # Update only the image lines in .env, preserving all other vars
+            sed -i '/^BACKEND_IMAGE=/d' .env 2>/dev/null || true
+            echo "BACKEND_IMAGE=$BE_IMAGE" >> .env
+            sed -i '/^FRONTEND_IMAGE=/d' .env 2>/dev/null || true
+            echo "FRONTEND_IMAGE=$FE_IMAGE" >> .env
+
             docker network inspect proxy-net >/dev/null 2>&1 || {
               log "Creating proxy-net network..."
               docker network create proxy-net
             }
 
             log "Pulling images..."
-            if ! BACKEND_IMAGE="$BE_IMAGE" FRONTEND_IMAGE="$FE_IMAGE" \
-                docker compose -f docker-compose.prod.yml pull backend frontend; then
+            if ! docker compose -f docker-compose.prod.yml pull backend frontend; then
               log "ERROR: Pull failed. Deployment aborted — server unchanged."
-              docker logout "$ECR_REGISTRY"
+              docker logout ghcr.io
               exit 1
             fi
 
             log "Starting containers..."
-            if ! BACKEND_IMAGE="$BE_IMAGE" FRONTEND_IMAGE="$FE_IMAGE" \
-                docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-build; then
+            if ! docker compose -f docker-compose.prod.yml up -d --no-build; then
               log "ERROR: docker compose up failed — check logs above for details."
-              docker logout "$ECR_REGISTRY"
+              docker logout ghcr.io
               exit 1
             fi
 
@@ -261,7 +264,7 @@ jobs:
               log "Deployment successful — running $NEW_TAG"
               docker exec nginx-proxy nginx -s reload || true
               docker image prune -f
-              docker logout "$ECR_REGISTRY"
+              docker logout ghcr.io
               exit 0
             fi
 
@@ -277,8 +280,11 @@ jobs:
               docker pull "$PREV_BE_IMAGE"
               docker pull "$PREV_FE_IMAGE"
               log "Reverting to $PREV_TAG..."
-              BACKEND_IMAGE="$PREV_BE_IMAGE" FRONTEND_IMAGE="$PREV_FE_IMAGE" \
-                docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-build
+              sed -i '/^BACKEND_IMAGE=/d' .env 2>/dev/null || true
+              echo "BACKEND_IMAGE=$PREV_BE_IMAGE" >> .env
+              sed -i '/^FRONTEND_IMAGE=/d' .env 2>/dev/null || true
+              echo "FRONTEND_IMAGE=$PREV_FE_IMAGE" >> .env
+              docker compose -f docker-compose.prod.yml up -d --no-build
               sleep 5
               BE_RB=$(docker inspect --format='{{.State.Status}}' "$BACKEND_CONTAINER" 2>/dev/null || true)
               FE_RB=$(docker inspect --format='{{.State.Status}}' "$FRONTEND_CONTAINER" 2>/dev/null || true)
@@ -288,5 +294,5 @@ jobs:
               log "No previous version available. Cannot roll back."
             fi
 
-            docker logout "$ECR_REGISTRY"
+            docker logout ghcr.io
             exit 1
