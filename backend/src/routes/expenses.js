@@ -8,7 +8,7 @@ const router = Router();
 router.get("/", requireAuth, async (req, res) => {
   try {
     const { search, category, status, type } = req.query;
-    let query = "SELECT * FROM expenses WHERE 1=1";
+    let query = "SELECT * FROM expenses WHERE client_id IS NULL";
     const params = [];
     if (search) {
       params.push(`%${search}%`);

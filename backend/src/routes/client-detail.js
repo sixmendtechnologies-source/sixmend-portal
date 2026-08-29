@@ -256,6 +256,19 @@ router.post("/expenses", requireAuth, async (req, res) => {
   } catch { res.status(500).json({ error: "Server error" }); }
 });
 
+router.put("/expenses/:expenseId", requireAuth, async (req, res) => {
+  const { title, category, amount, expense_date, description, status, type } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE expenses SET title=$1, category=$2, amount=$3, expense_date=$4, description=$5, status=$6, type=$7, updated_at=NOW()
+       WHERE id=$8 AND client_id=$9 RETURNING *`,
+      [title, category || "General", amount, expense_date, description || null, status || "pending", type || "debit", req.params.expenseId, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    res.json(rows[0]);
+  } catch { res.status(500).json({ error: "Server error" }); }
+});
+
 router.delete("/expenses/:expenseId", requireAuth, async (req, res) => {
   try {
     await pool.query("DELETE FROM expenses WHERE id=$1 AND client_id=$2", [req.params.expenseId, req.params.id]);

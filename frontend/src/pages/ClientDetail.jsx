@@ -303,9 +303,9 @@ export default function ClientDetail() {
   const [fileLabel,  setFileLabel]  = useState("");
 
   // Expense modal
-  const [expModal,  setExpModal]  = useState(false);
+  const [expModal,  setExpModal]  = useState(null); // null | "add" | expense object
   const TODAY_STR = new Date().toISOString().slice(0, 10);
-  const EMPTY_EXP = { title: "", category: "Other", amount: "", expense_date: TODAY_STR, description: "", status: "pending", type: "debit" };
+  const EMPTY_EXP = { title: "", category: "General", amount: "", expense_date: TODAY_STR, description: "", status: "pending", type: "debit" };
   const [expForm,   setExpForm]   = useState(EMPTY_EXP);
 
   // Service modal
@@ -882,8 +882,9 @@ export default function ClientDetail() {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post(`/clients/${id}/expenses`, expForm);
-      setExpModal(false);
+      if (expModal === "add") await api.post(`/clients/${id}/expenses`, expForm);
+      else await api.put(`/clients/${id}/expenses/${expForm.id}`, expForm);
+      setExpModal(null);
       setExpForm(EMPTY_EXP);
       fetchClientExpenses();
     } catch (err) { alert(err.response?.data?.error || "Error saving"); }
@@ -896,9 +897,9 @@ export default function ClientDetail() {
     catch { alert("Error deleting"); }
   };
 
-  const EXPENSE_CATS = ["Materials", "Labor", "Equipment", "Travel", "Other"];
-
-  const renderClientExpenses = () => (
+  const renderClientExpenses = () => {
+    const expCats = ["General", ...new Set(clientExpenses.map((e) => e.category).filter(Boolean).filter((c) => c !== "General"))];
+    return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
@@ -911,7 +912,7 @@ export default function ClientDetail() {
             )}
           </p>
         </div>
-        <Button onClick={() => { setExpForm(EMPTY_EXP); setExpModal(true); }}>
+        <Button onClick={() => { setExpForm(EMPTY_EXP); setExpModal("add"); }}>
           <span className="flex items-center gap-1.5"><Plus size={14} /> Add Expense</span>
         </Button>
       </div>
@@ -932,32 +933,45 @@ export default function ClientDetail() {
                 -₹{parseFloat(exp.amount).toLocaleString("en-IN")}
               </span>
               <Badge value={exp.status} />
+              <button onClick={() => { setExpForm({ ...exp, expense_date: exp.expense_date?.slice(0, 10) || "" }); setExpModal(exp); }} style={{ color: C.textMuted }}><Pencil size={14} /></button>
               <button onClick={() => deleteClientExp(exp.id)} style={{ color: C.red }}><Trash2 size={14} /></button>
             </div>
           ))}
         </div>
       )}
       {expModal && (
-        <Modal title="Add Expense" onClose={() => setExpModal(false)} width="480px">
+        <Modal title={expModal === "add" ? "Add Expense" : "Edit Expense"} onClose={() => setExpModal(null)} width="480px">
           <form onSubmit={handleSaveExp} className="flex flex-col gap-4">
             <Input label="Title" value={expForm.title} onChange={(e) => setExpForm({ ...expForm, title: e.target.value })} required placeholder="Expense description" />
             <div className="grid grid-cols-2 gap-3">
-              <Select label="Category" value={expForm.category} onChange={(e) => setExpForm({ ...expForm, category: e.target.value })}>
-                {EXPENSE_CATS.map((c) => <option key={c} value={c}>{c}</option>)}
-              </Select>
+              <div className="flex flex-col gap-1">
+                <label className="text-[12px]" style={{ color: C.textMuted }}>Category</label>
+                <input
+                  list="exp-cat-list"
+                  value={expForm.category}
+                  onChange={(e) => setExpForm({ ...expForm, category: e.target.value })}
+                  placeholder="General"
+                  className="px-3 py-2 rounded-lg text-[13px] outline-none transition-colors"
+                  style={{ background: "var(--color-bg)", border: `1px solid ${C.border}`, color: C.textPrimary }}
+                  onFocus={(e) => (e.target.style.borderColor = C.green)}
+                  onBlur={(e) => (e.target.style.borderColor = C.border)}
+                />
+                <datalist id="exp-cat-list">
+                  {expCats.map((c) => <option key={c} value={c} />)}
+                </datalist>
+              </div>
               <Input label="Amount (₹)" type="number" value={expForm.amount} onChange={(e) => setExpForm({ ...expForm, amount: e.target.value })} required placeholder="0.00" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Input label="Date" type="date" value={expForm.expense_date} onChange={(e) => setExpForm({ ...expForm, expense_date: e.target.value })} required />
               <Select label="Status" value={expForm.status} onChange={(e) => setExpForm({ ...expForm, status: e.target.value })}>
                 <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
+                <option value="paid">Paid</option>
               </Select>
             </div>
             <Textarea label="Notes" value={expForm.description || ""} onChange={(e) => setExpForm({ ...expForm, description: e.target.value })} placeholder="Additional notes…" />
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="secondary" onClick={() => setExpModal(false)}>Cancel</Button>
+              <Button variant="secondary" onClick={() => setExpModal(null)}>Cancel</Button>
               <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
             </div>
           </form>
@@ -965,6 +979,7 @@ export default function ClientDetail() {
       )}
     </div>
   );
+  };
 
   // ─── Services Tab ─────────────────────────────────────────────────────────────
 
