@@ -96,8 +96,7 @@ async function seedSystemFields() {
       await pool.query(
         `INSERT INTO custom_fields (module, label, field_key, type, required, position, is_system, visible, options)
          VALUES ($1,$2,$3,$4,$5,$6,true,true,$7)
-         ON CONFLICT (module, field_key) DO UPDATE SET
-           options = CASE WHEN custom_fields.options IS NULL THEN EXCLUDED.options ELSE custom_fields.options END`,
+         ON CONFLICT (module, field_key) DO NOTHING`,
         [f.module, f.label, f.field_key, f.type, f.required, f.position, opts]
       );
     }
