@@ -55,8 +55,8 @@ router.get("/:id", requireAuth, async (req, res) => {
 
 router.post("/", requireAuth, async (req, res) => {
   const { title, description, source, contact_name, contact_number, gmail, priority, value, assigned_to, custom_data } = req.body;
-  if (!title || !description || !source || !contact_number || !gmail) {
-    return res.status(400).json({ error: "Subject, Description, Source, Contact Number, and Gmail are required" });
+  if (!title) {
+    return res.status(400).json({ error: "Subject is required" });
   }
   try {
     const { rows } = await pool.query(
