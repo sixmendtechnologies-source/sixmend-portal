@@ -9,6 +9,7 @@ import Button from "../components/ui/Button";
 import { Input, Select, Textarea } from "../components/ui/Input";
 import { C } from "../utils/colors";
 import CustomFieldsSection from "../components/ui/CustomFieldsSection";
+import Pagination from "../components/ui/Pagination";
 
 const SOURCES = ["MechBook", "Stepney", "Sixmend", "CookBy", "General"];
 
@@ -58,6 +59,8 @@ export default function Enquiries() {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const fetchEnquiries = () => {
     setLoading(true);
@@ -73,7 +76,7 @@ export default function Enquiries() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchEnquiries(); }, [search, stageFilter, priorityFilter]);
+  useEffect(() => { fetchEnquiries(); setPage(1); }, [search, stageFilter, priorityFilter]);
 
   useEffect(() => {
     const handler = (e) => { if (e.detail.module === "enquiries") fetchEnquiries(); };
@@ -204,11 +207,14 @@ export default function Enquiries() {
           <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: C.green, borderTopColor: "transparent" }} />
         </div>
       ) : (
-        <Table
-          columns={columns}
-          data={enquiries}
-          onRowClick={(row) => navigate(`/enquiries/${row.id}`)}
-        />
+        <>
+          <Table
+            columns={columns}
+            data={enquiries.slice((page - 1) * pageSize, page * pageSize)}
+            onRowClick={(row) => navigate(`/enquiries/${row.id}`)}
+          />
+          <Pagination total={enquiries.length} page={page} pageSize={pageSize} onPage={setPage} onPageSize={setPageSize} />
+        </>
       )}
 
       {(modal === "add" || modal === "edit") && (

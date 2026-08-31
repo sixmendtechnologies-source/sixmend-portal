@@ -9,6 +9,7 @@ import Button from "../components/ui/Button";
 import { Input, Select, Textarea } from "../components/ui/Input";
 import { C } from "../utils/colors";
 import CustomFieldsSection from "../components/ui/CustomFieldsSection";
+import Pagination from "../components/ui/Pagination";
 
 const EMPTY = { name: "", company: "", email: "", phone: "", address: "", status: "active", notes: "", custom_data: {} };
 
@@ -37,6 +38,8 @@ export default function Clients() {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const fetchClients = () => {
     setLoading(true);
@@ -48,7 +51,7 @@ export default function Clients() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchClients(); }, [search, statusFilter]);
+  useEffect(() => { fetchClients(); setPage(1); }, [search, statusFilter]);
 
   useEffect(() => {
     const handler = (e) => { if (e.detail.module === "clients") fetchClients(); };
@@ -170,7 +173,10 @@ export default function Clients() {
           <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: C.green, borderTopColor: "transparent" }} />
         </div>
       ) : (
-        <Table columns={columns} data={clients} onRowClick={(row) => navigate(`/clients/${row.id}`)} />
+        <>
+          <Table columns={columns} data={clients.slice((page - 1) * pageSize, page * pageSize)} onRowClick={(row) => navigate(`/clients/${row.id}`)} />
+          <Pagination total={clients.length} page={page} pageSize={pageSize} onPage={setPage} onPageSize={setPageSize} />
+        </>
       )}
 
       {(modal === "add" || modal === "edit") && (

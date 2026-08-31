@@ -8,6 +8,7 @@ import Button from "../components/ui/Button";
 import { Input, Select, Textarea } from "../components/ui/Input";
 import { C } from "../utils/colors";
 import CustomFieldsSection from "../components/ui/CustomFieldsSection";
+import Pagination from "../components/ui/Pagination";
 
 const TODAY = new Date().toISOString().slice(0, 10);
 const EMPTY = { title: "", category: "Materials", amount: "", expense_date: TODAY, description: "", status: "pending", type: "debit", custom_data: {} };
@@ -52,6 +53,8 @@ export default function Expenses() {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const fetchExpenses = () => {
     setLoading(true);
@@ -65,7 +68,7 @@ export default function Expenses() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchExpenses(); }, [search, categoryFilter, statusFilter, activeTab]);
+  useEffect(() => { fetchExpenses(); setPage(1); }, [search, categoryFilter, statusFilter, activeTab]);
 
   useEffect(() => {
     const handler = (e) => { if (e.detail.module === "expenses") fetchExpenses(); };
@@ -222,7 +225,10 @@ export default function Expenses() {
           <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: C.green, borderTopColor: "transparent" }} />
         </div>
       ) : (
-        <Table columns={columns} data={expenses} />
+        <>
+          <Table columns={columns} data={expenses.slice((page - 1) * pageSize, page * pageSize)} />
+          <Pagination total={expenses.length} page={page} pageSize={pageSize} onPage={setPage} onPageSize={setPageSize} />
+        </>
       )}
 
       {(modal === "add" || modal === "edit") && (
