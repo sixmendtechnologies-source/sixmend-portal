@@ -5,6 +5,7 @@ import {
   FileText, ExternalLink, Send, Clock, Download, Upload, FileDown,
 } from "lucide-react";
 import api from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
@@ -261,6 +262,7 @@ function useCustomFields(module) {
 export default function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const fileInputRef = useRef(null);
   const customFields = useCustomFields("clients");
 
@@ -395,7 +397,7 @@ export default function ClientDetail() {
     if (!logText.trim()) return;
     try {
       await api.post(`/clients/${id}/phases/${logModal.phaseId}/logs`, {
-        message: logText.trim(), created_by: "Admin",
+        message: logText.trim(), created_by: user?.name || "Admin",
       });
       setLogText("");
       const { data } = await api.get(`/clients/${id}/phases/${logModal.phaseId}/logs`);
@@ -535,7 +537,7 @@ export default function ClientDetail() {
   const handleAddComment = async () => {
     if (!commentText.trim()) return;
     try {
-      await api.post(`/clients/${id}/comments`, { author: "Admin", body: commentText.trim() });
+      await api.post(`/clients/${id}/comments`, { author: user?.name || "Admin", body: commentText.trim() });
       setCommentText("");
       fetchComments();
     } catch { alert("Error posting comment"); }
@@ -1114,7 +1116,7 @@ export default function ClientDetail() {
         </div>
       ))}
       <div className="flex gap-3 p-4 rounded-xl" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{ background: "#fb8c00", color: "#1a0800" }}>AD</div>
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{ background: "#fb8c00", color: "#1a0800" }}>{(user?.name || "AD").slice(0, 2).toUpperCase()}</div>
         <div className="flex-1 flex gap-2 items-end">
           <textarea
             value={commentText}

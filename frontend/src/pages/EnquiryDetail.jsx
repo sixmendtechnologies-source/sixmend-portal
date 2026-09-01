@@ -5,6 +5,7 @@ import api from "../utils/api";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import { C } from "../utils/colors";
+import { useAuth } from "../context/AuthContext";
 
 function useCustomFields(module) {
   const [fields, setFields] = useState([]);
@@ -41,6 +42,7 @@ function fmtDate(d) {
 export default function EnquiryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [enquiry, setEnquiry]   = useState(null);
   const [loading, setLoading]   = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -73,7 +75,7 @@ export default function EnquiryDetail() {
   const handleAddComment = async () => {
     if (!commentText.trim()) return;
     try {
-      await api.post(`/enquiries/${id}/comments`, { author: "Admin", body: commentText.trim() });
+      await api.post(`/enquiries/${id}/comments`, { author: user?.name || "Admin", body: commentText.trim() });
       setCommentText("");
       fetchComments();
     } catch { alert("Error posting comment"); }
@@ -105,7 +107,7 @@ export default function EnquiryDetail() {
   const nextStage = !isLost && !isClient && currentIdx >= 0 && currentIdx < STAGES.length - 1 ? STAGES[currentIdx + 1] : null;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-3">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
@@ -145,8 +147,8 @@ export default function EnquiryDetail() {
       </div>
 
       {/* Pipeline */}
-      <div className="rounded-xl p-5" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-        <div className="text-[11px] font-semibold uppercase tracking-widest mb-5" style={{ color: C.textMuted }}>
+      <div className="rounded-xl p-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+        <div className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: C.textMuted }}>
           Pipeline Stage
         </div>
 
@@ -161,7 +163,7 @@ export default function EnquiryDetail() {
             </span>
           </div>
         ) : (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-3">
             {/* Clickable Stepper */}
             <div className="flex items-start">
               {STAGES.map((stage, idx) => {
@@ -235,11 +237,11 @@ export default function EnquiryDetail() {
       </div>
 
       {/* Details Grid */}
-      <div className="rounded-xl p-5" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-        <div className="text-[11px] font-semibold uppercase tracking-widest mb-5" style={{ color: C.textMuted }}>
+      <div className="rounded-xl p-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+        <div className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: C.textMuted }}>
           Enquiry Details
         </div>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3">
           <DetailField label="Description"    value={enquiry.description} full />
           <DetailField label="Source"         value={enquiry.source} />
           <DetailField label="Contact Name"   value={enquiry.contact_name} />
@@ -265,7 +267,7 @@ export default function EnquiryDetail() {
       </div>
 
       {/* Comments */}
-      <div className="rounded-xl p-5 flex flex-col gap-3" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+      <div className="rounded-xl p-4 flex flex-col gap-2" style={{ background: C.card, border: `1px solid ${C.border}` }}>
         <div className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>
           Comments &amp; Updates
         </div>
@@ -305,7 +307,7 @@ export default function EnquiryDetail() {
             className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
             style={{ background: "#fb8c00", color: "#1a0800" }}
           >
-            AD
+            {(user?.name || "AD").slice(0, 2).toUpperCase()}
           </div>
           <div className="flex-1 flex gap-2 items-end">
             <textarea
