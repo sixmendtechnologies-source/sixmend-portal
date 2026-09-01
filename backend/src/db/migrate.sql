@@ -133,3 +133,12 @@ CREATE TABLE IF NOT EXISTS client_services (
 
 -- Change default client status from prospect to active
 ALTER TABLE clients ALTER COLUMN status SET DEFAULT 'active';
+
+-- Enquiry comments
+CREATE TABLE IF NOT EXISTS enquiry_comments (
+  id          SERIAL PRIMARY KEY,
+  enquiry_id  INTEGER NOT NULL REFERENCES enquiries(id) ON DELETE CASCADE,
+  author      VARCHAR(100),
+  body        TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

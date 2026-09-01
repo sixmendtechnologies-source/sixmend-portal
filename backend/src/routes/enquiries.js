@@ -117,4 +117,35 @@ router.delete("/:id", requireAuth, async (req, res) => {
   }
 });
 
+// ─── Enquiry Comments ─────────────────────────────────────────────────────────
+
+router.get("/:id/comments", requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT * FROM enquiry_comments WHERE enquiry_id=$1 ORDER BY created_at ASC",
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch { res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/:id/comments", requireAuth, async (req, res) => {
+  const { author, body } = req.body;
+  if (!body) return res.status(400).json({ error: "Comment body required" });
+  try {
+    const { rows } = await pool.query(
+      "INSERT INTO enquiry_comments (enquiry_id, author, body) VALUES ($1,$2,$3) RETURNING *",
+      [req.params.id, author || "Admin", body]
+    );
+    res.status(201).json(rows[0]);
+  } catch { res.status(500).json({ error: "Server error" }); }
+});
+
+router.delete("/:id/comments/:commentId", requireAuth, async (req, res) => {
+  try {
+    await pool.query("DELETE FROM enquiry_comments WHERE id=$1 AND enquiry_id=$2", [req.params.commentId, req.params.id]);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: "Server error" }); }
+});
+
 export default router;
