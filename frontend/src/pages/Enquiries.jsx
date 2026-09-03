@@ -124,6 +124,23 @@ export default function Enquiries() {
 
   const field = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
+  const CALL_STATUSES = [
+    { value: "",             label: "—",                  color: C.textMuted },
+    { value: "called",       label: "Called",              color: C.green },
+    { value: "no_response",  label: "No Response",         color: C.orange },
+    { value: "disconnected", label: "Disconnected",        color: C.red },
+    { value: "busy",         label: "Busy",                color: C.orange },
+    { value: "callback",     label: "Callback Requested",  color: C.blueLight },
+  ];
+
+  const updateCallStatus = async (id, call_status, e) => {
+    e.stopPropagation();
+    try {
+      await api.patch(`/enquiries/${id}/call-status`, { call_status });
+      setEnquiries((prev) => prev.map((en) => en.id === id ? { ...en, call_status } : en));
+    } catch { alert("Error updating call status"); }
+  };
+
   const columns = [
     { key: "id", label: "#", render: (v) => <span style={{ color: C.textMuted }}>#{v}</span> },
     { key: "title", label: "Subject" },
@@ -136,6 +153,32 @@ export default function Enquiries() {
       render: (v) => v ? <span style={{ color: C.green }}>₹{parseFloat(v).toLocaleString("en-IN")}</span> : <span style={{ color: C.textMuted }}>—</span>,
     },
     { key: "assigned_to", label: "Assigned To", render: (v) => v || <span style={{ color: C.textMuted }}>—</span> },
+    {
+      key: "call_status",
+      label: "Call Status",
+      render: (v, row) => {
+        const cur = CALL_STATUSES.find((s) => s.value === (v || "")) || CALL_STATUSES[0];
+        return (
+          <select
+            value={v || ""}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => updateCallStatus(row.id, e.target.value, e)}
+            className="px-2 py-1 rounded text-[11px] font-medium outline-none cursor-pointer"
+            style={{
+              background: "transparent",
+              border: `1px solid ${C.border}`,
+              color: cur.color,
+            }}
+          >
+            {CALL_STATUSES.map((s) => (
+              <option key={s.value} value={s.value} style={{ color: C.textPrimary }}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        );
+      },
+    },
     {
       key: "actions",
       label: "",

@@ -243,6 +243,7 @@ export default function EnquiryDetail() {
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
           <DetailField label="Description"    value={enquiry.description} full />
+          <DetailField label="Call Status"    value={enquiry.call_status ? enquiry.call_status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : null} />
           <DetailField label="Source"         value={enquiry.source} />
           <DetailField label="Contact Name"   value={enquiry.contact_name} />
           <DetailField label="Contact Number" value={enquiry.contact_number} />

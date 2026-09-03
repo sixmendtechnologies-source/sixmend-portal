@@ -213,12 +213,13 @@ router.get("/comments", requireAuth, async (req, res) => {
 });
 
 router.post("/comments", requireAuth, async (req, res) => {
-  const { author, body } = req.body;
+  const { body } = req.body;
+  const author = req.user?.name || "Unknown";
   if (!body) return res.status(400).json({ error: "Comment body required" });
   try {
     const { rows } = await pool.query(
       "INSERT INTO client_comments (client_id, author, body) VALUES ($1,$2,$3) RETURNING *",
-      [req.params.id, author || "Admin", body]
+      [req.params.id, author, body]
     );
     res.status(201).json(rows[0]);
   } catch { res.status(500).json({ error: "Server error" }); }

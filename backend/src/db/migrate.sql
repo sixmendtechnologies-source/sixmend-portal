@@ -142,3 +142,15 @@ CREATE TABLE IF NOT EXISTS enquiry_comments (
   body        TEXT NOT NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Enquiry call status
+ALTER TABLE enquiries ADD COLUMN IF NOT EXISTS call_status VARCHAR(50);
+
+-- Fix existing comments authored as 'Admin' — set to the actual admin user's name
+UPDATE enquiry_comments
+  SET author = (SELECT name FROM users WHERE role = 'admin' ORDER BY id LIMIT 1)
+  WHERE author = 'Admin';
+
+UPDATE client_comments
+  SET author = (SELECT name FROM users WHERE role = 'admin' ORDER BY id LIMIT 1)
+  WHERE author = 'Admin';

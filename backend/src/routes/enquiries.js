@@ -89,6 +89,21 @@ router.put("/:id", requireAuth, async (req, res) => {
   }
 });
 
+router.patch("/:id/call-status", requireAuth, async (req, res) => {
+  const { call_status } = req.body;
+  try {
+    const { rows } = await pool.query(
+      "UPDATE enquiries SET call_status=$1, updated_at=NOW() WHERE id=$2 RETURNING *",
+      [call_status || null, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    broadcast("enquiries");
+    res.json(rows[0]);
+  } catch {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 router.patch("/:id/stage", requireAuth, async (req, res) => {
   const { stage } = req.body;
   if (!VALID_STAGES.includes(stage)) {
@@ -130,12 +145,13 @@ router.get("/:id/comments", requireAuth, async (req, res) => {
 });
 
 router.post("/:id/comments", requireAuth, async (req, res) => {
-  const { author, body } = req.body;
+  const { body } = req.body;
+  const author = req.user?.name || "Unknown";
   if (!body) return res.status(400).json({ error: "Comment body required" });
   try {
     const { rows } = await pool.query(
       "INSERT INTO enquiry_comments (enquiry_id, author, body) VALUES ($1,$2,$3) RETURNING *",
-      [req.params.id, author || "Admin", body]
+      [req.params.id, author, body]
     );
     res.status(201).json(rows[0]);
   } catch { res.status(500).json({ error: "Server error" }); }
