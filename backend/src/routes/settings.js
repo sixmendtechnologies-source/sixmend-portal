@@ -7,7 +7,7 @@ const router = express.Router();
 const FIELDS = [
   "legal_name", "address", "state", "state_code", "pin_code", "gstin",
   "email", "phone", "website", "bank_account_name", "bank_name",
-  "account_number", "ifsc_code", "payment_instructions",
+  "account_number", "ifsc_code", "upi_id", "payment_instructions",
   "default_payment_terms", "signatory_name", "signatory_designation", "logo_data", "seal_data",
 ];
 

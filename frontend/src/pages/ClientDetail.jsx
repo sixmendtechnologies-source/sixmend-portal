@@ -64,8 +64,8 @@ function amountInWords(amount) {
     return toWords(Math.floor(n / 10000000)) + "Crore " + toWords(n % 10000000);
   }
   const n = Math.round(parseFloat(amount) || 0);
-  if (n === 0) return "Zero Only";
-  return toWords(n).trim() + " Only";
+  if (n === 0) return "Indian Rupees Zero Only";
+  return "Indian Rupees " + toWords(n).trim() + " Only";
 }
 
 function inr(n) {
@@ -263,218 +263,207 @@ ${(co.signatory_name || co.signatory_designation) ? `<div style="margin-bottom:2
 // ─── Tax Invoice HTML Generator ───────────────────────────────────────────────
 
 function buildFinalInvoiceHTML(client, paidPayments, form, logoBase64, co = {}, invoiceUser = null, sigBase64 = null, baseUrl = "") {
-  const lineItems       = (form.items || []).filter(item => item.description || parseFloat(item.amount || 0) > 0);
-  const totalTaxable    = lineItems.reduce((s, item) => s + parseFloat(item.amount || 0), 0);
-  const taxRate         = parseFloat(form.tax_rate || 0);
-  const isIntraState    = !!(co.state && client.state && co.state.trim().toLowerCase() === client.state.trim().toLowerCase());
-  const cgstRate        = isIntraState ? taxRate / 2 : 0;
-  const sgstRate        = isIntraState ? taxRate / 2 : 0;
-  const igstRate        = !isIntraState ? taxRate : 0;
-  const cgstAmt         = totalTaxable * cgstRate / 100;
-  const sgstAmt         = totalTaxable * sgstRate / 100;
-  const igstAmt         = totalTaxable * igstRate / 100;
-  const totalTax        = totalTaxable * taxRate / 100;
-  const invoiceTotal    = totalTaxable + totalTax;
+  const lineItems  = (form.items || []).filter(item => item.description || parseFloat(item.rate || item.amount || 0) > 0);
+  const withCalc   = lineItems.map(item => {
+    const qty     = parseFloat(item.qty || 1);
+    const rate    = parseFloat(item.rate || item.amount || 0);
+    const taxable = qty * rate;
+    return { ...item, qty, rate, taxable };
+  });
+  const totalTaxable = withCalc.reduce((s, it) => s + it.taxable, 0);
+  const taxRate      = parseFloat(form.tax_rate || 0);
+  const isIntraState = !!(co.state && client.state && co.state.trim().toLowerCase() === client.state.trim().toLowerCase());
+  const cgstRate     = isIntraState ? taxRate / 2 : 0;
+  const sgstRate     = isIntraState ? taxRate / 2 : 0;
+  const igstRate     = !isIntraState ? taxRate : 0;
+  const cgstAmt      = totalTaxable * cgstRate / 100;
+  const sgstAmt      = totalTaxable * sgstRate / 100;
+  const invoiceTotal = totalTaxable + totalTaxable * taxRate / 100;
 
-  const NAVY = "#0C2340";
+  const B  = "#0f3d73";
+  const MU = "#5d6b7c";
+  const LN = "#cfd6df";
+  const TN = "#f2f6fb";
 
-  const logoSrc = logoBase64 || co.logo_data || null;
+  const fmtN = n => parseFloat(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fr   = r => r % 1 === 0 ? String(r) : r.toFixed(2);
 
-  const coInfo = [
+  const sigName = invoiceUser?.name || co.signatory_name || co.legal_name || "Sixmend Technologies";
+
+  const coAddrLine = [
     co.address,
-    [co.state, co.state_code ? `(${co.state_code})` : null, co.pin_code ? `- ${co.pin_code}` : null].filter(Boolean).join(" "),
-    co.gstin ? `GSTIN: ${co.gstin}` : null,
-    [co.phone, co.email].filter(Boolean).join("  |  "),
-  ].filter(Boolean);
+    [co.state, co.state_code ? `(${co.state_code})` : null, co.pin_code ? `– ${co.pin_code}` : null].filter(Boolean).join(" "),
+  ].filter(Boolean).join(", ");
 
-  const clientInfo = [
+  const clientAddr = [
     client.company,
     client.address,
-    [client.state, client.state_code ? `(${client.state_code})` : null, client.pin_code ? `- ${client.pin_code}` : null].filter(Boolean).join(" "),
-    client.gstin ? `GSTIN: ${client.gstin}` : null,
-    client.email,
-    client.phone,
+    [client.state, client.state_code ? `(${client.state_code})` : null, client.pin_code ? `– ${client.pin_code}` : null].filter(Boolean).join(" "),
   ].filter(Boolean);
 
-  const fmtRate    = (r) => `${r % 1 === 0 ? r : r.toFixed(2)}`;
-  const payTermsHtml = (form.payment_terms || "")
+  const payBullets = (form.payment_terms || "")
     .split("\n").filter(Boolean)
-    .map(l => `<div style="font-size:11.5px;color:#444;margin-bottom:5px;line-height:1.5">${l}</div>`)
+    .map(l => `<li style="margin:2px 0">${l.replace(/^[•\-]\s*/, "")}</li>`)
     .join("");
 
-  const signatoryName = invoiceUser?.name || co.signatory_name || co.legal_name || "Sixmend Technologies";
+  const bankRows = [
+    co.bank_account_name && ["Account name", co.bank_account_name],
+    co.bank_name         && ["Bank",          co.bank_name],
+    co.account_number    && ["Account no.",   co.account_number],
+    co.ifsc_code         && ["IFSC",          co.ifsc_code],
+    co.upi_id            && ["UPI",           co.upi_id],
+  ].filter(Boolean);
+
+  const placeOfSupply = form.place_of_supply
+    || (client.state ? `${client.state}${client.state_code ? ` (${client.state_code})` : ""}` : "")
+    || `<span style="color:#b3261e;font-weight:600">State name (code) – required</span>`;
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>TAX INVOICE ${form.number}</title>
+<title>Tax Invoice ${form.number}</title>
 <style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  @page{size:A4 portrait;margin:0}
-  body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;background:#fff;color:#333;font-size:12px}
-  table{border-collapse:collapse;width:100%}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4 portrait;margin:0}
+body{font:13px/1.45 "Segoe UI",system-ui,Arial,sans-serif;color:#1b2430;background:#fff}
+table{border-collapse:collapse;width:100%}
+.sheet{width:794px;max-width:100%;margin:0 auto;padding:36px 40px 40px}
+@media print{.sheet{padding:28px 32px 32px}}
 </style>
-</head><body>
+</head><body><div class="sheet">
 
-<!-- ══ A: HEADER ══ -->
-<div style="background:${NAVY};padding:16px 40px 16px;border:0;border-top:0;box-shadow:none">
-  <table style="width:100%;border:0" cellpadding="0" cellspacing="0">
-    <tr>
-      <td style="vertical-align:middle;width:60%;border:0">
-
-        <div style="line-height:0">
-          <img src="${baseUrl}/sixmend-logo.png" alt="Sixmend Technologies"
-            style="width:240px;height:auto;display:block;margin:-6px 0 -10px -10px"
-            onerror="this.src='';this.style.display='none';this.nextElementSibling.style.display='inline-block'">
-          <span style="display:none;font-size:20px;font-weight:900;color:#fff;font-family:'Segoe UI',Arial,sans-serif;line-height:1.2">${co.legal_name || "Sixmend Technologies"}</span>
-        </div>
-
-        <div style="margin-top:0">
-          ${coInfo.map(l => `<div style="font-size:9.5px;color:#7eb8d4;line-height:1.5">${l}</div>`).join("")}
-        </div>
-
-      </td>
-
-      <td style="vertical-align:middle;width:40%;text-align:right;border:0">
-        <div style="font-size:14px;color:#4fc3f7;font-weight:700;letter-spacing:1px">${form.number}</div>
-        <div style="font-size:11px;color:#7eb8d4;margin-top:4px">Invoice Date: ${fmtDate(form.date)}</div>
-        ${form.due_date ? `<div style="font-size:11px;color:#7eb8d4;margin-top:2px">Due Date: ${fmtDate(form.due_date)}</div>` : ""}
-      </td>
-    </tr>
-
-    <tr>
-      <td colspan="2" style="text-align:center;padding-top:14px;border:0;border-top:1px solid rgba(255,255,255,0.18)">
-        <div style="font-size:24px;font-weight:900;color:#fff;letter-spacing:7px;line-height:1">TAX INVOICE</div>
-      </td>
-    </tr>
-  </table>
-</div>
-
-      </td>
-      <!-- right column and TAX INVOICE row unchanged -->
-
-<!-- ══ B: BILL TO + PROJECT DETAILS ══ -->
-<div style="padding:0 40px;border-bottom:2px solid #b0c8df">
-  <table>
-    <tr>
-      <td style="width:52%;vertical-align:top;padding:18px 24px 18px 0;border-right:1.5px solid #b0c8df">
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:${NAVY};margin-bottom:9px">BILL TO</div>
-        <div style="font-size:14px;font-weight:700;color:${NAVY};margin-bottom:4px">${client.name}</div>
-        ${clientInfo.map(l => `<div style="font-size:11.5px;color:#555;margin-bottom:2px">${l}</div>`).join("")}
-      </td>
-      <td style="vertical-align:top;padding:18px 0 18px 24px">
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:${NAVY};margin-bottom:9px">PROJECT DETAILS</div>
-        <table style="width:100%">
-          ${form.project_name ? `<tr><td style="padding-bottom:6px;font-size:11px;color:#888">Project Name</td><td style="padding-bottom:6px;font-size:11px;font-weight:600;color:#333;text-align:right">${form.project_name}</td></tr>` : ""}
-          <tr><td style="padding-bottom:6px;font-size:11px;color:#888">Project Status</td><td style="padding-bottom:6px;font-size:11.5px;font-weight:700;color:#2E7D32;text-align:right">${form.project_status || "Completed"}</td></tr>
-          ${form.handover_date ? `<tr><td style="padding-bottom:6px;font-size:11px;color:#888">Handover Date</td><td style="padding-bottom:6px;font-size:11px;font-weight:600;color:#333;text-align:right">${fmtDate(form.handover_date)}</td></tr>` : ""}
-          ${form.po_number ? `<tr><td style="padding-bottom:6px;font-size:11px;color:#888">PO Number</td><td style="padding-bottom:6px;font-size:11px;font-weight:600;color:#333;text-align:right">${form.po_number}</td></tr>` : ""}
-          <tr><td style="padding-bottom:6px;font-size:11px;color:#888">Place of Supply</td><td style="padding-bottom:6px;font-size:11px;font-weight:600;color:#333;text-align:right">${client.state || "—"}</td></tr>
-          <tr><td style="font-size:11px;color:#888">Reverse Charge</td><td style="font-size:11px;font-weight:600;color:#333;text-align:right">No</td></tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</div>
-
-<!-- ══ C: INVOICE SUMMARY ══ -->
-<div style="padding:20px 40px 0">
-  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:${NAVY};margin-bottom:10px">INVOICE SUMMARY</div>
-  <table style="border:1.5px solid #b0c8df;width:100%">
-    <thead>
-      <tr style="background:#f0f5fc">
-        <th style="padding:10px 14px;font-size:10.5px;font-weight:700;color:${NAVY};text-align:left;border-bottom:1.5px solid #b0c8df;width:70%">Description</th>
-        <th style="padding:10px 14px;font-size:10.5px;font-weight:700;color:${NAVY};text-align:right;border-bottom:1.5px solid #b0c8df;width:30%">Amount</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${lineItems.map((item, i) => `<tr>
-        <td style="padding:12px 14px;font-size:12.5px;color:#1a1a1a;border-bottom:1px solid #ccd9e8;line-height:1.5">
-          <span style="font-size:10px;color:#bbb;margin-right:6px">${i + 1}.</span>${item.description || "—"}
-        </td>
-        <td style="padding:12px 14px;font-size:12.5px;color:#1a1a1a;border-bottom:1px solid #ccd9e8;text-align:right;white-space:nowrap">${inr(parseFloat(item.amount || 0))}</td>
-      </tr>`).join("")}
-      <tr style="background:#f8fafc">
-        <td style="padding:10px 14px;font-size:12px;font-weight:600;color:#333;border-top:2px solid #b0c8df;border-bottom:1.5px solid #b0c8df"><strong>Subtotal</strong></td>
-        <td style="padding:10px 14px;font-size:12px;font-weight:600;color:#333;text-align:right;border-top:2px solid #b0c8df;border-bottom:1.5px solid #b0c8df;white-space:nowrap"><strong>${inr(totalTaxable)}</strong></td>
-      </tr>
-      ${taxRate > 0 ? (isIntraState
-        ? `<tr><td style="padding:9px 14px;font-size:12px;color:#555;border-bottom:1px solid #ccd9e8">CGST (${fmtRate(cgstRate)}%)</td><td style="padding:9px 14px;font-size:12px;color:#555;text-align:right;border-bottom:1px solid #ccd9e8;white-space:nowrap">${inr(cgstAmt)}</td></tr>
-           <tr><td style="padding:9px 14px;font-size:12px;color:#555;border-bottom:1px solid #ccd9e8">SGST (${fmtRate(sgstRate)}%)</td><td style="padding:9px 14px;font-size:12px;color:#555;text-align:right;border-bottom:1px solid #ccd9e8;white-space:nowrap">${inr(sgstAmt)}</td></tr>`
-        : `<tr><td style="padding:9px 14px;font-size:12px;color:#555;border-bottom:1px solid #ccd9e8">IGST (${fmtRate(igstRate)}%)</td><td style="padding:9px 14px;font-size:12px;color:#555;text-align:right;border-bottom:1px solid #ccd9e8;white-space:nowrap">${inr(igstAmt)}</td></tr>`)
-        : ""}
-      <tr style="background:${NAVY}">
-        <td style="padding:12px 14px;font-size:13px;font-weight:700;color:#fff">Total Invoice Amount</td>
-        <td style="padding:12px 14px;font-size:14px;font-weight:900;color:#fff;text-align:right;white-space:nowrap">${inr(invoiceTotal)}</td>
-      </tr>
-    </tbody>
-  </table>
-  <div style="text-align:right;margin-top:8px;font-size:11px;color:#888;font-style:italic">
-    Amount in words: <strong style="color:#333;font-style:normal">${amountInWords(invoiceTotal)}</strong>
+<!-- HEADER -->
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;border-bottom:3px solid ${B};padding-bottom:16px">
+  <div style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0">
+    <img src="${baseUrl}/sixmend-logo.png" alt="Sixmend Technologies"
+     style="height:86px;width:auto;max-width:305px;object-fit:contain;object-position:left center;display:block;margin:0 0 0 -11px"
+     onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <span style="display:none;font-size:30px;font-weight:800;letter-spacing:.04em;color:${B}">${(co.legal_name || "SIXMEND").toUpperCase()}</span>
+    <div style="font-size:11.5px;color:${MU};line-height:1.6;margin:0">
+      ${coAddrLine ? `${coAddrLine}<br>` : ""}${[co.gstin ? `GSTIN: ${co.gstin}` : null, co.pan ? `PAN: ${co.pan}` : null, co.phone, co.email].filter(Boolean).join("&nbsp;&nbsp;|&nbsp;&nbsp;")}
+    </div>
+  </div>
+  <div style="text-align:right;flex-shrink:0;padding-top:4px">
+    <h1 style="margin:0;font-size:22px;font-weight:800;letter-spacing:.08em;color:${B}">TAX INVOICE</h1>
+    <div style="font-size:11px;color:${MU};margin-top:4px">Original for Recipient</div>
   </div>
 </div>
 
-<!-- ══ D: PAYMENT TERMS ══ -->
-${payTermsHtml ? `
-<div style="padding:18px 40px 0">
-  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:${NAVY};margin-bottom:9px">PAYMENT TERMS</div>
-  ${payTermsHtml}
-</div>` : ""}
+<!-- META 4-col -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);border:1px solid ${LN};border-top:0;margin-bottom:0">
+  <div style="padding:10px 12px;border-right:1px solid ${LN};font-size:11px;color:${MU}">Invoice No.<b style="display:block;color:#1b2430;font-size:13px;margin-top:3px">${form.number}</b></div>
+  <div style="padding:10px 12px;border-right:1px solid ${LN};font-size:11px;color:${MU}">Invoice Date<b style="display:block;color:#1b2430;font-size:13px;margin-top:3px">${fmtDate(form.date)}</b></div>
+  <div style="padding:10px 12px;border-right:1px solid ${LN};font-size:11px;color:${MU}">Due Date<b style="display:block;color:#1b2430;font-size:13px;margin-top:3px">${form.due_date ? fmtDate(form.due_date) : "—"}</b></div>
+  <div style="padding:10px 12px;font-size:11px;color:${MU}">Reverse Charge<b style="display:block;color:#1b2430;font-size:13px;margin-top:3px">No</b></div>
+</div>
 
-${form.notes ? `
-<div style="padding:12px 40px 0">
-  <span style="font-size:11.5px;color:#555;font-weight:600">Notes: </span>
-  <span style="font-size:11.5px;color:#555">${form.notes}</span>
-</div>` : ""}
-
-<!-- ══ E: BANK DETAILS ══ -->
-${(co.bank_name || co.account_number) ? `
-<div style="padding:16px 40px 0">
-  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:${NAVY};margin-bottom:7px">BANK DETAILS</div>
-  <div style="font-size:11.5px;color:#555;line-height:1.85">
-    ${co.bank_account_name ? `<strong>A/C Name:</strong> ${co.bank_account_name} &nbsp;` : ""}
-    ${co.bank_name ? `<strong>Bank:</strong> ${co.bank_name} &nbsp;` : ""}
-    ${co.account_number ? `<strong>A/C No:</strong> ${co.account_number} &nbsp;` : ""}
-    ${co.ifsc_code ? `<strong>IFSC:</strong> ${co.ifsc_code}` : ""}
+<!-- PARTIES -->
+<div style="display:grid;grid-template-columns:1fr 1fr;border:1px solid ${LN};border-top:0;margin-bottom:0">
+  <div style="padding:14px;font-size:12px">
+    <div style="font-size:11px;color:${B};font-weight:700;margin-bottom:6px">Billed to</div>
+    <p style="font-weight:700;font-size:13px;margin:2px 0">${client.name}</p>
+    ${clientAddr.map(l => `<p style="margin:2px 0;color:#444">${l}</p>`).join("")}
+    ${client.gstin ? `<p style="margin:2px 0;color:#444">GSTIN: ${client.gstin}</p>` : ""}
+    ${(client.email || client.phone) ? `<p style="margin:2px 0;color:#444">${[client.email, client.phone ? `+91 ${client.phone}` : null].filter(Boolean).join("&nbsp;&nbsp;|&nbsp;&nbsp;")}</p>` : ""}
   </div>
-</div>` : ""}
+  <div style="padding:14px;font-size:12px;border-left:1px solid ${LN}">
+    <div style="font-size:11px;color:${B};font-weight:700;margin-bottom:6px">Supply details</div>
+    ${form.project_name ? `<p style="margin:2px 0">Project: <b>${form.project_name}</b></p>` : ""}
+    <p style="margin:2px 0;color:#444">Place of Supply: ${placeOfSupply}</p>
+    <p style="margin:2px 0;color:#444">Date of Supply: ${fmtDate(form.handover_date || form.date)}</p>
+    ${form.po_number ? `<p style="margin:2px 0;color:#444">PO Number: ${form.po_number}</p>` : ""}
+  </div>
+</div>
 
-<!-- ══ F: SIGNATURE SECTION ══ -->
-<div style="margin:20px 40px 0;border:1.5px solid #b0c8df;border-radius:4px;overflow:hidden">
-  <table style="width:100%">
+<!-- ITEMS TABLE -->
+<table style="margin-top:18px;font-size:12px">
+  <thead>
+    <tr style="background:${B};color:#fff">
+      <th style="padding:8px 8px;font-weight:600;font-size:11px;text-align:left;width:26px">#</th>
+      <th style="padding:8px 8px;font-weight:600;font-size:11px;text-align:left">Description</th>
+      <th style="padding:8px 8px;font-weight:600;font-size:11px;text-align:left;white-space:nowrap">HSN/SAC</th>
+      <th style="padding:8px 8px;font-weight:600;font-size:11px;text-align:right">Qty</th>
+      <th style="padding:8px 8px;font-weight:600;font-size:11px;text-align:right;white-space:nowrap">Rate (₹)</th>
+      <th style="padding:8px 8px;font-weight:600;font-size:11px;text-align:right;white-space:nowrap">Taxable (₹)</th>
+      <th style="padding:8px 8px;font-weight:600;font-size:11px;text-align:right">GST %</th>
+      <th style="padding:8px 8px;font-weight:600;font-size:11px;text-align:right;white-space:nowrap">Tax (₹)</th>
+      <th style="padding:8px 8px;font-weight:600;font-size:11px;text-align:right;white-space:nowrap">Total (₹)</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${withCalc.map((it, i) => {
+      const itemTax   = it.taxable * taxRate / 100;
+      const itemTotal = it.taxable + itemTax;
+      return `<tr>
+        <td style="padding:9px 8px;border-bottom:1px solid ${LN}">${i + 1}</td>
+        <td style="padding:9px 8px;border-bottom:1px solid ${LN}">${it.description || "—"}</td>
+        <td style="padding:9px 8px;border-bottom:1px solid ${LN}">${it.hsn || ""}</td>
+        <td style="padding:9px 8px;border-bottom:1px solid ${LN};text-align:right">${it.qty}</td>
+        <td style="padding:9px 8px;border-bottom:1px solid ${LN};text-align:right;white-space:nowrap">${fmtN(it.rate)}</td>
+        <td style="padding:9px 8px;border-bottom:1px solid ${LN};text-align:right;white-space:nowrap">${fmtN(it.taxable)}</td>
+        <td style="padding:9px 8px;border-bottom:1px solid ${LN};text-align:right">${taxRate}%</td>
+        <td style="padding:9px 8px;border-bottom:1px solid ${LN};text-align:right;white-space:nowrap">${fmtN(itemTax)}</td>
+        <td style="padding:9px 8px;border-bottom:1px solid ${LN};text-align:right;white-space:nowrap">${fmtN(itemTotal)}</td>
+      </tr>`;
+    }).join("")}
+  </tbody>
+</table>
+
+<!-- SUMMARY -->
+<div style="display:grid;grid-template-columns:1fr 300px;gap:20px;margin-top:14px;align-items:start">
+  <div>
+    <div style="font-size:12px;padding:12px;background:${TN};border-left:3px solid ${B};line-height:1.6">
+      <b>Amount in words:</b><br>${amountInWords(invoiceTotal)}
+    </div>
+  </div>
+  <table style="font-size:12px">
+    <tr><td style="border:0;padding:5px 8px;color:${MU}">Taxable value</td><td style="border:0;padding:5px 8px;text-align:right;white-space:nowrap">${inr(totalTaxable)}</td></tr>
+    ${taxRate > 0 ? (isIntraState
+      ? `<tr><td style="border:0;padding:5px 8px;color:${MU}">CGST @ ${fr(cgstRate)}%</td><td style="border:0;padding:5px 8px;text-align:right;white-space:nowrap">${inr(cgstAmt)}</td></tr>
+         <tr><td style="border:0;padding:5px 8px;color:${MU}">SGST @ ${fr(sgstRate)}%</td><td style="border:0;padding:5px 8px;text-align:right;white-space:nowrap">${inr(sgstAmt)}</td></tr>`
+      : `<tr><td style="border:0;padding:5px 8px;color:${MU}">IGST @ ${fr(igstRate)}%</td><td style="border:0;padding:5px 8px;text-align:right;white-space:nowrap">${inr(totalTaxable * igstRate / 100)}</td></tr>`)
+      : ""}
     <tr>
-      <td style="vertical-align:top;padding:16px 20px;text-align:right">
-
-        <div style="display:inline-block;text-align:center">
-          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:${NAVY};margin-bottom:4px">For ${co.legal_name || "Sixmend Technologies"}</div>
-          <div style="font-size:12px;font-weight:700;color:#222;margin-bottom:4px">${signatoryName}</div>
-          <div style="font-size:10px;color:#888;margin-bottom:14px">${co.signatory_designation || "Authorised Signatory"}</div>
-        </div>
-
-        <div style="display:block">
-          <div style="display:inline-flex;align-items:flex-end;justify-content:flex-end;gap:14px">
-            ${sigBase64
-              ? `<img src="${sigBase64}" alt="Signature" style="max-height:46px;max-width:120px;object-fit:contain;display:block">`
-              : `<div style="height:46px;width:80px"></div>`}
-            ${co.seal_data
-              ? `<img src="${co.seal_data}" alt="Seal" style="max-height:60px;max-width:60px;object-fit:contain;display:block">`
-              : ""}
-          </div>
-        </div>
-
-      </td>
+      <td style="padding:8px;font-weight:700;font-size:14px;border-top:2px solid ${B}">Total invoice amount</td>
+      <td style="padding:8px;font-weight:700;font-size:14px;text-align:right;white-space:nowrap;border-top:2px solid ${B}">${inr(invoiceTotal)}</td>
     </tr>
   </table>
 </div>
 
-<!-- ══ BOTTOM BAR ══ -->
-<div style="background:${NAVY};padding:10px 40px;margin-top:20px">
-  <table>
-    <tr>
-      <td style="font-size:11px;color:#fff;font-style:italic">Thank you for your business.</td>
-      <td style="font-size:10px;color:#7eb8d4;text-align:right">
-        ${[co.legal_name || "Sixmend Technologies", co.website, co.email].filter(Boolean).join(" &nbsp;&middot;&nbsp; ")}
-      </td>
-    </tr>
-  </table>
+${payBullets || bankRows.length > 0 ? `
+<!-- PAYMENT TERMS + BANK DETAILS -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px;font-size:11.5px">
+  <div>
+    ${payBullets ? `<div style="font-size:12px;color:${B};font-weight:700;margin-bottom:6px">Payment terms</div>
+    <ul style="margin:0;padding-left:18px;line-height:1.7">${payBullets}</ul>` : ""}
+  </div>
+  <div>
+    ${bankRows.length > 0 ? `<div style="font-size:12px;color:${B};font-weight:700;margin-bottom:6px">Bank details</div>
+    <table style="margin:0">
+      ${bankRows.map(([l, v]) => `<tr><td style="border:0;padding:2px 0;color:${MU};width:96px;vertical-align:top">${l}</td><td style="border:0;padding:2px 0">${v}</td></tr>`).join("")}
+    </table>` : ""}
+  </div>
+</div>` : ""}
+
+<!-- SIGNATURE -->
+<div style="margin-top:24px;border:1px solid ${LN};padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-end;min-height:120px;font-size:11.5px">
+  <div style="color:#444;line-height:1.6">
+    Declaration: We certify that the particulars given are true and correct.<br>
+    Subject to ${co.state || "Kottayam"} jurisdiction.
+  </div>
+  <div style="text-align:right">
+    For <b>${(co.legal_name || "SIXMEND TECHNOLOGIES").toUpperCase()}</b>
+    <div style="min-height:54px;display:flex;align-items:flex-end;justify-content:flex-end;gap:10px;margin:6px 0">
+      ${sigBase64 ? `<img src="${sigBase64}" style="max-height:46px;max-width:114px;object-fit:contain;display:block">` : ""}
+      ${co.seal_data ? `<img src="${co.seal_data}" style="max-height:58px;max-width:58px;object-fit:contain;display:block">` : ""}
+    </div>
+    Authorised Signatory<br>${sigName}${co.signatory_designation ? `, ${co.signatory_designation}` : ""}
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div style="margin-top:16px;text-align:center;font-size:10.5px;color:${MU};border-top:1px solid ${LN};padding-top:10px">
+  This is a computer-generated invoice. &nbsp;&nbsp; Thank you for your business. &nbsp;&nbsp; ${co.website || "www.sixmend.com"}
+</div>
+
 </div>
 
 </body></html>`;
@@ -534,10 +523,11 @@ export default function ClientDetail() {
   const [finalInvModal, setFinalInvModal] = useState(false);
   const [finalInvForm,  setFinalInvForm]  = useState({
     number: "", date: "", due_date: "", po_number: "",
-    items: [{ description: "", amount: "" }],
+    items: [{ description: "", hsn: "", qty: "1", rate: "" }],
     project_name: "", project_status: "Completed", handover_date: "",
+    place_of_supply: "",
     tax_rate: "0",
-    payment_terms: "• The outstanding balance is payable upon completion and handover of the software, unless otherwise agreed in writing.\n• Payment Method: Bank Transfer / UPI\n• Please mention the invoice number when making the payment.",
+    payment_terms: "• Balance payable on completion and handover, unless agreed otherwise in writing.\n• Pay by bank transfer or UPI and quote the invoice number.",
     notes: "",
   });
 
@@ -830,14 +820,15 @@ export default function ClientDetail() {
         due_date: dueDate.toISOString().split("T")[0],
         po_number: "",
         items: Array.isArray(client.project_items) && client.project_items.length
-          ? client.project_items.map(it => ({ description: it.description || "", amount: String(it.amount || "") }))
-          : [{ description: `Software Development, Implementation & Deployment for ${client.company || client.name}`, amount: String(client.total_value || "") }],
+          ? client.project_items.map(it => ({ description: it.description || "", hsn: it.hsn || "", qty: String(it.qty || "1"), rate: String(it.rate || it.amount || "") }))
+          : [{ description: `Software Development, Implementation & Deployment for ${client.company || client.name}`, hsn: "", qty: "1", rate: String(client.total_value || "") }],
         project_name: client.company || client.name || "",
         project_status: "Completed",
         handover_date: today.toISOString().split("T")[0],
+        place_of_supply: client.state ? `${client.state}${client.state_code ? ` (${client.state_code})` : ""}` : "",
         tax_rate: client.project_gst != null ? String(client.project_gst) : "0",
         payment_terms: companyCfg.default_payment_terms ||
-          "• The outstanding balance is payable upon completion and handover of the software, unless otherwise agreed in writing.\n• Payment Method: Bank Transfer / UPI\n• Please mention the invoice number when making the payment.",
+          "• Balance payable on completion and handover, unless agreed otherwise in writing.\n• Pay by bank transfer or UPI and quote the invoice number.",
         notes: "",
       });
       setFinalInvModal(true);
@@ -873,7 +864,7 @@ export default function ClientDetail() {
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 350);
     // Save to invoice history (silent — don't block print)
-    const subtotal = (finalInvForm.items || []).reduce((s, it) => s + parseFloat(it.amount || 0), 0);
+    const subtotal = (finalInvForm.items || []).reduce((s, it) => s + parseFloat(it.qty || 1) * parseFloat(it.rate || 0), 0);
     const taxRateN = parseFloat(finalInvForm.tax_rate || 0);
     const total = subtotal + subtotal * taxRateN / 100;
     try {
@@ -917,14 +908,15 @@ export default function ClientDetail() {
       due_date: "",
       po_number: "",
       items: Array.isArray(freshClient.project_items) && freshClient.project_items.length
-        ? freshClient.project_items.map((it) => ({ description: it.description || "", amount: String(it.amount || "") }))
-        : [{ description: `Software Development, Implementation & Deployment for ${freshClient.company || freshClient.name}`, amount: String(freshClient.total_value || "") }],
+        ? freshClient.project_items.map((it) => ({ description: it.description || "", hsn: it.hsn || "", qty: String(it.qty || "1"), rate: String(it.rate || it.amount || "") }))
+        : [{ description: `Software Development, Implementation & Deployment for ${freshClient.company || freshClient.name}`, hsn: "", qty: "1", rate: String(freshClient.total_value || "") }],
       project_name: freshClient.company || freshClient.name || "",
       project_status: "Completed",
       handover_date: invDate,
+      place_of_supply: finalInvForm.place_of_supply || (freshClient.state ? `${freshClient.state}${freshClient.state_code ? ` (${freshClient.state_code})` : ""}` : ""),
       tax_rate: freshClient.project_gst != null ? String(freshClient.project_gst) : "0",
       payment_terms: freshCo.default_payment_terms ||
-        "• The outstanding balance is payable upon completion and handover of the software, unless otherwise agreed in writing.\n• Payment Method: Bank Transfer / UPI\n• Please mention the invoice number when making the payment.",
+        "• Balance payable on completion and handover, unless agreed otherwise in writing.\n• Pay by bank transfer or UPI and quote the invoice number.",
       notes: "",
     };
     const paidPayments = payments.filter((p) => p.status === "paid");
@@ -2059,7 +2051,7 @@ export default function ClientDetail() {
       {/* ── Tax Invoice Modal ── */}
       {finalInvModal && (() => {
         const paidPayments   = payments.filter((p) => p.status === "paid");
-        const subtotalAmt    = (finalInvForm.items || []).reduce((s, it) => s + parseFloat(it.amount || 0), 0);
+        const subtotalAmt    = (finalInvForm.items || []).reduce((s, it) => s + parseFloat(it.qty || 1) * parseFloat(it.rate || 0), 0);
         const taxRate        = parseFloat(finalInvForm.tax_rate || 0);
         const tax            = subtotalAmt * (taxRate / 100);
         const invoiceTotal   = subtotalAmt + tax;
@@ -2069,7 +2061,7 @@ export default function ClientDetail() {
           const items = finalInvForm.items.map((it, i) => i === idx ? { ...it, [key]: val } : it);
           setFinalInvForm({ ...finalInvForm, items });
         };
-        const addItem        = () => setFinalInvForm({ ...finalInvForm, items: [...finalInvForm.items, { description: "", amount: "" }] });
+        const addItem        = () => setFinalInvForm({ ...finalInvForm, items: [...finalInvForm.items, { description: "", hsn: "", qty: "1", rate: "" }] });
         const removeItem     = (idx) => setFinalInvForm({ ...finalInvForm, items: finalInvForm.items.filter((_, i) => i !== idx) });
         return (
           <Modal title="Generate Tax Invoice" onClose={() => setFinalInvModal(false)} width="600px">
@@ -2102,24 +2094,39 @@ export default function ClientDetail() {
                   </button>
                 </div>
                 <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
-                  <div className="grid text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5" style={{ gridTemplateColumns: "1fr 120px 28px", background: "var(--table-header-bg)", color: C.textMuted }}>
-                    <span>Description</span><span className="text-right pr-2">Amount (₹)</span><span />
+                  <div className="grid text-[10px] font-semibold uppercase tracking-wide px-2 py-1.5" style={{ gridTemplateColumns: "1fr 80px 50px 100px 28px", background: "var(--table-header-bg)", color: C.textMuted }}>
+                    <span>Description</span><span>HSN/SAC</span><span className="text-right">Qty</span><span className="text-right pr-2">Rate (₹)</span><span />
                   </div>
                   {(finalInvForm.items || []).map((item, idx) => (
-                    <div key={idx} className="grid items-center" style={{ gridTemplateColumns: "1fr 120px 28px", borderTop: `1px solid ${C.border}` }}>
+                    <div key={idx} className="grid items-center" style={{ gridTemplateColumns: "1fr 80px 50px 100px 28px", borderTop: `1px solid ${C.border}` }}>
                       <input
                         value={item.description}
                         onChange={(e) => setItem(idx, "description", e.target.value)}
                         placeholder="e.g. Frontend Development"
-                        className="px-3 py-2 text-[12.5px] outline-none bg-transparent"
+                        className="px-2 py-2 text-[12px] outline-none bg-transparent"
+                        style={{ color: C.textPrimary, borderRight: `1px solid ${C.border}` }}
+                      />
+                      <input
+                        value={item.hsn || ""}
+                        onChange={(e) => setItem(idx, "hsn", e.target.value)}
+                        placeholder="998314"
+                        className="px-2 py-2 text-[12px] outline-none bg-transparent"
                         style={{ color: C.textPrimary, borderRight: `1px solid ${C.border}` }}
                       />
                       <input
                         type="number"
-                        value={item.amount}
-                        onChange={(e) => setItem(idx, "amount", e.target.value)}
+                        value={item.qty}
+                        onChange={(e) => setItem(idx, "qty", e.target.value)}
+                        placeholder="1"
+                        className="px-2 py-2 text-[12px] outline-none bg-transparent text-right"
+                        style={{ color: C.textPrimary, borderRight: `1px solid ${C.border}` }}
+                      />
+                      <input
+                        type="number"
+                        value={item.rate}
+                        onChange={(e) => setItem(idx, "rate", e.target.value)}
                         placeholder="0"
-                        className="px-3 py-2 text-[12.5px] outline-none bg-transparent text-right"
+                        className="px-2 py-2 text-[12px] outline-none bg-transparent text-right"
                         style={{ color: C.textPrimary, borderRight: `1px solid ${C.border}` }}
                       />
                       <div className="flex items-center justify-center">
@@ -2131,9 +2138,9 @@ export default function ClientDetail() {
                       </div>
                     </div>
                   ))}
-                  <div className="grid px-3 py-2 text-[12px] font-semibold" style={{ gridTemplateColumns: "1fr 120px 28px", borderTop: `1px solid ${C.border}`, background: "var(--table-header-bg)" }}>
+                  <div className="grid px-2 py-2 text-[12px] font-semibold" style={{ gridTemplateColumns: "1fr 80px 50px 100px 28px", borderTop: `1px solid ${C.border}`, background: "var(--table-header-bg)" }}>
                     <span style={{ color: C.textMuted }}>Subtotal</span>
-                    <span className="text-right pr-2" style={{ color: C.textPrimary }}>{fmt(subtotalAmt)}</span>
+                    <span /><span /><span className="text-right pr-2" style={{ color: C.textPrimary }}>{fmt(subtotalAmt)}</span>
                     <span />
                   </div>
                 </div>
@@ -2155,6 +2162,9 @@ export default function ClientDetail() {
 
               {/* Handover Date */}
               <Input label="Completion / Handover Date" type="date" value={finalInvForm.handover_date} onChange={(e) => setFinalInvForm({ ...finalInvForm, handover_date: e.target.value })} />
+
+              {/* Place of Supply */}
+              <Input label="Place of Supply" value={finalInvForm.place_of_supply} onChange={(e) => setFinalInvForm({ ...finalInvForm, place_of_supply: e.target.value })} placeholder="e.g. Kerala (32)" />
 
               {/* GST Rate */}
               <Input label="GST / Tax Rate (%)" type="number" value={finalInvForm.tax_rate} onChange={(e) => setFinalInvForm({ ...finalInvForm, tax_rate: e.target.value })} placeholder="0" />

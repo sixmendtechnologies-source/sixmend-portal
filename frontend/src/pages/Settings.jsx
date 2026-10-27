@@ -647,7 +647,7 @@ function UsersTab() {
 const EMPTY_COMPANY = {
   legal_name: "", address: "", state: "", state_code: "", pin_code: "",
   gstin: "", email: "", phone: "", website: "",
-  bank_account_name: "", bank_name: "", account_number: "", ifsc_code: "",
+  bank_account_name: "", bank_name: "", account_number: "", ifsc_code: "", upi_id: "",
   payment_instructions: "", default_payment_terms: "",
   signatory_name: "", signatory_designation: "", logo_data: "", seal_data: "",
 };
@@ -792,6 +792,7 @@ function CompanyTab() {
           <Input label="Account Number" value={form.account_number} onChange={field("account_number")} placeholder="0000000000" />
           <Input label="IFSC Code" value={form.ifsc_code} onChange={field("ifsc_code")} placeholder="HDFC0001234" />
         </div>
+        <Input label="UPI ID" value={form.upi_id} onChange={field("upi_id")} placeholder="e.g. sixmend@hdfcbank" />
         <Textarea label="Payment Instructions" value={form.payment_instructions} onChange={field("payment_instructions")} placeholder="Additional payment instructions shown on invoices…" rows={2} />
       </div>
 

@@ -196,6 +196,9 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS signature_data TEXT;
 -- Company seal image
 ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS seal_data TEXT;
 
+-- UPI ID for company settings
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS upi_id VARCHAR(100);
+
 -- Tax invoice history per client
 CREATE TABLE IF NOT EXISTS client_tax_invoices (
   id             SERIAL PRIMARY KEY,
