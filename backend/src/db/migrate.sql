@@ -146,6 +146,68 @@ CREATE TABLE IF NOT EXISTS enquiry_comments (
 -- Enquiry call status
 ALTER TABLE enquiries ADD COLUMN IF NOT EXISTS call_status VARCHAR(50);
 
+-- Extended client business/invoicing fields
+ALTER TABLE clients
+  ADD COLUMN IF NOT EXISTS state                VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS state_code           VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS pin_code             VARCHAR(10),
+  ADD COLUMN IF NOT EXISTS gstin                VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS website              VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS bank_account_name    VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS bank_name            VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS account_number       VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS ifsc_code            VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS payment_instructions TEXT,
+  ADD COLUMN IF NOT EXISTS default_payment_terms TEXT;
+
+-- Company settings (single-row config for invoice module)
+CREATE TABLE IF NOT EXISTS company_settings (
+  id                    INT PRIMARY KEY DEFAULT 1,
+  legal_name            VARCHAR(200),
+  address               TEXT,
+  state                 VARCHAR(100),
+  state_code            VARCHAR(20),
+  pin_code              VARCHAR(10),
+  gstin                 VARCHAR(20),
+  email                 VARCHAR(150),
+  phone                 VARCHAR(30),
+  website               VARCHAR(200),
+  bank_account_name     VARCHAR(200),
+  bank_name             VARCHAR(200),
+  account_number        VARCHAR(50),
+  ifsc_code             VARCHAR(20),
+  payment_instructions  TEXT,
+  default_payment_terms TEXT,
+  signatory_name        VARCHAR(200),
+  signatory_designation VARCHAR(100),
+  logo_data             TEXT,
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+INSERT INTO company_settings (id) VALUES (1) ON CONFLICT DO NOTHING;
+
+-- Project value breakdown and GST on clients
+ALTER TABLE clients
+  ADD COLUMN IF NOT EXISTS project_items JSONB,
+  ADD COLUMN IF NOT EXISTS project_gst   DECIMAL(5,2) DEFAULT 0;
+
+-- User signature for invoice generation
+ALTER TABLE users ADD COLUMN IF NOT EXISTS signature_data TEXT;
+
+-- Company seal image
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS seal_data TEXT;
+
+-- Tax invoice history per client
+CREATE TABLE IF NOT EXISTS client_tax_invoices (
+  id             SERIAL PRIMARY KEY,
+  client_id      INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  invoice_number VARCHAR(50) NOT NULL,
+  invoice_date   DATE,
+  total_amount   DECIMAL(12,2),
+  status         VARCHAR(20) NOT NULL DEFAULT 'active',
+  created_by     VARCHAR(100),
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Fix existing comments authored as 'Admin' — set to the actual admin user's name
 UPDATE enquiry_comments
   SET author = (SELECT name FROM users WHERE role = 'admin' ORDER BY id LIMIT 1)

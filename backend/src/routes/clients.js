@@ -65,18 +65,40 @@ router.post("/", requireAuth, async (req, res) => {
 });
 
 router.put("/:id", requireAuth, async (req, res) => {
-  const { name, company, email, phone, address, status, notes, total_value, total_value_note, custom_data } = req.body;
+  const {
+    name, company, email, phone, address, status, notes,
+    total_value, total_value_note, custom_data,
+    state, state_code, pin_code, gstin, website,
+    bank_account_name, bank_name, account_number, ifsc_code,
+    payment_instructions, default_payment_terms,
+    project_items, project_gst,
+  } = req.body;
   try {
     const { rows } = await pool.query(
-      `UPDATE clients SET name=$1,company=$2,email=$3,phone=$4,address=$5,status=$6,notes=$7,
-       total_value=$8,total_value_note=$9,custom_data=$10,updated_at=NOW() WHERE id=$11 RETURNING *`,
-      [name, company, email, phone, address, status, notes,
-       total_value ?? null, total_value_note ?? null, JSON.stringify(custom_data || {}), req.params.id]
+      `UPDATE clients SET
+        name=$1, company=$2, email=$3, phone=$4, address=$5, status=$6, notes=$7,
+        total_value=$8, total_value_note=$9, custom_data=$10,
+        state=$11, state_code=$12, pin_code=$13, gstin=$14, website=$15,
+        bank_account_name=$16, bank_name=$17, account_number=$18, ifsc_code=$19,
+        payment_instructions=$20, default_payment_terms=$21,
+        project_items=$22, project_gst=$23,
+        updated_at=NOW()
+       WHERE id=$24 RETURNING *`,
+      [
+        name, company, email, phone, address, status, notes,
+        total_value ?? null, total_value_note ?? null, JSON.stringify(custom_data || {}),
+        state ?? null, state_code ?? null, pin_code ?? null, gstin ?? null, website ?? null,
+        bank_account_name ?? null, bank_name ?? null, account_number ?? null, ifsc_code ?? null,
+        payment_instructions ?? null, default_payment_terms ?? null,
+        project_items ? JSON.stringify(project_items) : null, project_gst ?? null,
+        req.params.id,
+      ]
     );
     if (!rows[0]) return res.status(404).json({ error: "Not found" });
     broadcast("clients");
     res.json(rows[0]);
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Server error" });
   }
 });

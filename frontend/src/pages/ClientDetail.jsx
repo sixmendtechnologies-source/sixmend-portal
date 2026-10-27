@@ -64,8 +64,8 @@ function amountInWords(amount) {
     return toWords(Math.floor(n / 10000000)) + "Crore " + toWords(n % 10000000);
   }
   const n = Math.round(parseFloat(amount) || 0);
-  if (n === 0) return "Zero Rupees Only";
-  return "Rupees " + toWords(n).trim() + " Only";
+  if (n === 0) return "Zero Only";
+  return toWords(n).trim() + " Only";
 }
 
 function inr(n) {
@@ -82,17 +82,18 @@ function StatCard({ label, value, color }) {
 }
 
 function InfoField({ label, value, full }) {
+  const isEmpty = value === null || value === undefined || value === "";
   return (
     <div className={full ? "col-span-2" : ""}>
       <div className="text-[11px] uppercase tracking-wide mb-1" style={{ color: C.textMuted }}>{label}</div>
-      <div className="text-[13px]" style={{ color: value ? C.textPrimary : C.textMuted }}>{value || "—"}</div>
+      <div className="text-[13px]" style={{ color: isEmpty ? C.textMuted : C.textPrimary }}>{isEmpty ? "—" : value}</div>
     </div>
   );
 }
 
 // ─── Invoice HTML Generator ───────────────────────────────────────────────────
 
-function buildInvoiceHTML(client, payment, form, ctx, logoBase64) {
+function buildInvoiceHTML(client, payment, form, ctx, logoBase64, co = {}) {
   const items = form.items && form.items.length > 0
     ? form.items
     : [{ description: payment.title, qty: 1, rate: payment.amount || 0 }];
@@ -166,12 +167,13 @@ function buildInvoiceHTML(client, payment, form, ctx, logoBase64) {
   <tr>
     <td style="vertical-align:top;width:48%">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#aaa;margin-bottom:8px">FROM</div>
-      <div style="font-size:14px;font-weight:700;color:#1a237e;margin-bottom:5px">Sixmend Technologies</div>
+      <div style="font-size:14px;font-weight:700;color:#1a237e;margin-bottom:5px">${co.legal_name || "Sixmend Technologies"}</div>
       <div style="font-size:12px;color:#555;line-height:1.75">
-        Line 1 — street / building<br>
-        City, Kerala — PIN<br>
-        +91 00000 00000 · info@sixmend.com<br>
-        www.sixmend.com
+        ${co.address ? `${co.address}<br>` : ""}
+        ${(co.state || co.pin_code) ? `${[co.state, co.state_code ? `(${co.state_code})` : "", co.pin_code ? `— ${co.pin_code}` : ""].filter(Boolean).join(" ")}<br>` : ""}
+        ${co.gstin ? `GSTIN: ${co.gstin}<br>` : ""}
+        ${(co.phone || co.email) ? `${[co.phone, co.email].filter(Boolean).join(" · ")}<br>` : ""}
+        ${co.website ? co.website : ""}
       </div>
     </td>
     <td style="vertical-align:top;text-align:right">
@@ -179,6 +181,8 @@ function buildInvoiceHTML(client, payment, form, ctx, logoBase64) {
       <div style="font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:4px">${client.name}</div>
       ${client.company ? `<div style="font-size:12px;color:#333;margin-bottom:2px">${client.company}</div>` : ""}
       ${client.address ? `<div style="font-size:12px;color:#555;margin-bottom:2px">${client.address}</div>` : ""}
+      ${(client.state || client.pin_code) ? `<div style="font-size:12px;color:#555;margin-bottom:2px">${[client.state, client.state_code ? `(${client.state_code})` : "", client.pin_code ? `— ${client.pin_code}` : ""].filter(Boolean).join(" ")}</div>` : ""}
+      ${client.gstin   ? `<div style="font-size:12px;color:#555;margin-bottom:2px">GSTIN: ${client.gstin}</div>` : ""}
       ${client.email   ? `<div style="font-size:12px;color:#555;margin-bottom:2px">${client.email}</div>`   : ""}
       ${client.phone   ? `<div style="font-size:12px;color:#555">${client.phone}</div>`                    : ""}
     </td>
@@ -206,7 +210,7 @@ function buildInvoiceHTML(client, payment, form, ctx, logoBase64) {
     <td style="padding:5px 16px;font-size:13px;color:#555;text-align:right">${inr(sub)}</td>
   </tr>
   <tr>
-    <td style="padding:5px 16px;font-size:13px;color:#555">Tax (${taxRate}%)</td>
+    <td style="padding:5px 16px;font-size:13px;color:#555">GST (${taxRate}%)</td>
     <td style="padding:5px 16px;font-size:13px;color:#555;text-align:right">${inr(tax)}</td>
   </tr>` : ""}
   <tr style="border-top:1px solid #e0e0e0">
@@ -224,10 +228,11 @@ function buildInvoiceHTML(client, payment, form, ctx, logoBase64) {
   <table><tr>
     <td style="vertical-align:top;width:65%">
       <div style="font-size:12px;color:#555;line-height:1.9">
-        <strong>A/C name:</strong> Sixmend Technologies<br>
-        <strong>Bank:</strong> Bank name<br>
-        <strong>A/C no:</strong> 0000000000 &nbsp;&nbsp;<strong>IFSC:</strong> XXXX0000000
-        ${form.mode ? `<br><strong>Mode:</strong> ${form.mode}` : ""}
+        ${co.bank_account_name ? `<strong>A/C name:</strong> ${co.bank_account_name}<br>` : ""}
+        ${co.bank_name ? `<strong>Bank:</strong> ${co.bank_name}<br>` : ""}
+        ${co.account_number ? `<strong>A/C no:</strong> ${co.account_number}` : ""}${co.ifsc_code ? ` &nbsp;&nbsp;<strong>IFSC:</strong> ${co.ifsc_code}` : ""}${(co.account_number || co.ifsc_code) ? "<br>" : ""}
+        ${form.mode ? `<strong>Mode:</strong> ${form.mode}<br>` : ""}
+        ${co.payment_instructions ? `<span style="color:#777">${co.payment_instructions}</span>` : ""}
       </div>
     </td>
     ${form.mode === "UPI" ? `<td style="vertical-align:top;text-align:right">
@@ -242,8 +247,234 @@ ${form.notes ? `<div style="margin-bottom:20px">
   <div style="font-size:12px;color:#555;line-height:1.75">${form.notes}</div>
 </div>` : ""}
 
+${(co.signatory_name || co.signatory_designation) ? `<div style="margin-bottom:20px;text-align:right">
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#aaa;margin-bottom:4px">AUTHORISED SIGNATORY</div>
+  <div style="font-size:13px;font-weight:600;color:#333">${co.signatory_name || ""}</div>
+  ${co.signatory_designation ? `<div style="font-size:11px;color:#777">${co.signatory_designation}</div>` : ""}
+</div>` : ""}
+
 <div style="border-top:1px solid #e8e8e8;padding-top:12px;text-align:center;font-size:11px;color:#aaa">
-  Sixmend Technologies &middot; www.sixmend.com &middot; info@sixmend.com
+  ${co.legal_name || "Sixmend Technologies"}${co.website ? ` &middot; ${co.website}` : ""}${co.email ? ` &middot; ${co.email}` : ""}
+</div>
+
+</body></html>`;
+}
+
+// ─── Tax Invoice HTML Generator ───────────────────────────────────────────────
+
+function buildFinalInvoiceHTML(client, paidPayments, form, logoBase64, co = {}, invoiceUser = null, sigBase64 = null, baseUrl = "") {
+  const lineItems       = (form.items || []).filter(item => item.description || parseFloat(item.amount || 0) > 0);
+  const totalTaxable    = lineItems.reduce((s, item) => s + parseFloat(item.amount || 0), 0);
+  const taxRate         = parseFloat(form.tax_rate || 0);
+  const isIntraState    = !!(co.state && client.state && co.state.trim().toLowerCase() === client.state.trim().toLowerCase());
+  const cgstRate        = isIntraState ? taxRate / 2 : 0;
+  const sgstRate        = isIntraState ? taxRate / 2 : 0;
+  const igstRate        = !isIntraState ? taxRate : 0;
+  const cgstAmt         = totalTaxable * cgstRate / 100;
+  const sgstAmt         = totalTaxable * sgstRate / 100;
+  const igstAmt         = totalTaxable * igstRate / 100;
+  const totalTax        = totalTaxable * taxRate / 100;
+  const invoiceTotal    = totalTaxable + totalTax;
+
+  const NAVY = "#0C2340";
+
+  const logoSrc = logoBase64 || co.logo_data || null;
+
+  const coInfo = [
+    co.address,
+    [co.state, co.state_code ? `(${co.state_code})` : null, co.pin_code ? `- ${co.pin_code}` : null].filter(Boolean).join(" "),
+    co.gstin ? `GSTIN: ${co.gstin}` : null,
+    [co.phone, co.email].filter(Boolean).join("  |  "),
+  ].filter(Boolean);
+
+  const clientInfo = [
+    client.company,
+    client.address,
+    [client.state, client.state_code ? `(${client.state_code})` : null, client.pin_code ? `- ${client.pin_code}` : null].filter(Boolean).join(" "),
+    client.gstin ? `GSTIN: ${client.gstin}` : null,
+    client.email,
+    client.phone,
+  ].filter(Boolean);
+
+  const fmtRate    = (r) => `${r % 1 === 0 ? r : r.toFixed(2)}`;
+  const payTermsHtml = (form.payment_terms || "")
+    .split("\n").filter(Boolean)
+    .map(l => `<div style="font-size:11.5px;color:#444;margin-bottom:5px;line-height:1.5">${l}</div>`)
+    .join("");
+
+  const signatoryName = invoiceUser?.name || co.signatory_name || co.legal_name || "Sixmend Technologies";
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>TAX INVOICE ${form.number}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  @page{size:A4 portrait;margin:0}
+  body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;background:#fff;color:#333;font-size:12px}
+  table{border-collapse:collapse;width:100%}
+</style>
+</head><body>
+
+<!-- ══ A: HEADER ══ -->
+<div style="background:${NAVY};padding:16px 40px 16px;border:0;border-top:0;box-shadow:none">
+  <table style="width:100%;border:0" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="vertical-align:middle;width:60%;border:0">
+
+        <div style="line-height:0">
+          <img src="${baseUrl}/sixmend-logo.png" alt="Sixmend Technologies"
+            style="width:240px;height:auto;display:block;margin:-6px 0 -10px -10px"
+            onerror="this.src='';this.style.display='none';this.nextElementSibling.style.display='inline-block'">
+          <span style="display:none;font-size:20px;font-weight:900;color:#fff;font-family:'Segoe UI',Arial,sans-serif;line-height:1.2">${co.legal_name || "Sixmend Technologies"}</span>
+        </div>
+
+        <div style="margin-top:0">
+          ${coInfo.map(l => `<div style="font-size:9.5px;color:#7eb8d4;line-height:1.5">${l}</div>`).join("")}
+        </div>
+
+      </td>
+
+      <td style="vertical-align:middle;width:40%;text-align:right;border:0">
+        <div style="font-size:14px;color:#4fc3f7;font-weight:700;letter-spacing:1px">${form.number}</div>
+        <div style="font-size:11px;color:#7eb8d4;margin-top:4px">Invoice Date: ${fmtDate(form.date)}</div>
+        ${form.due_date ? `<div style="font-size:11px;color:#7eb8d4;margin-top:2px">Due Date: ${fmtDate(form.due_date)}</div>` : ""}
+      </td>
+    </tr>
+
+    <tr>
+      <td colspan="2" style="text-align:center;padding-top:14px;border:0;border-top:1px solid rgba(255,255,255,0.18)">
+        <div style="font-size:24px;font-weight:900;color:#fff;letter-spacing:7px;line-height:1">TAX INVOICE</div>
+      </td>
+    </tr>
+  </table>
+</div>
+
+      </td>
+      <!-- right column and TAX INVOICE row unchanged -->
+
+<!-- ══ B: BILL TO + PROJECT DETAILS ══ -->
+<div style="padding:0 40px;border-bottom:2px solid #b0c8df">
+  <table>
+    <tr>
+      <td style="width:52%;vertical-align:top;padding:18px 24px 18px 0;border-right:1.5px solid #b0c8df">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:${NAVY};margin-bottom:9px">BILL TO</div>
+        <div style="font-size:14px;font-weight:700;color:${NAVY};margin-bottom:4px">${client.name}</div>
+        ${clientInfo.map(l => `<div style="font-size:11.5px;color:#555;margin-bottom:2px">${l}</div>`).join("")}
+      </td>
+      <td style="vertical-align:top;padding:18px 0 18px 24px">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:${NAVY};margin-bottom:9px">PROJECT DETAILS</div>
+        <table style="width:100%">
+          ${form.project_name ? `<tr><td style="padding-bottom:6px;font-size:11px;color:#888">Project Name</td><td style="padding-bottom:6px;font-size:11px;font-weight:600;color:#333;text-align:right">${form.project_name}</td></tr>` : ""}
+          <tr><td style="padding-bottom:6px;font-size:11px;color:#888">Project Status</td><td style="padding-bottom:6px;font-size:11.5px;font-weight:700;color:#2E7D32;text-align:right">${form.project_status || "Completed"}</td></tr>
+          ${form.handover_date ? `<tr><td style="padding-bottom:6px;font-size:11px;color:#888">Handover Date</td><td style="padding-bottom:6px;font-size:11px;font-weight:600;color:#333;text-align:right">${fmtDate(form.handover_date)}</td></tr>` : ""}
+          ${form.po_number ? `<tr><td style="padding-bottom:6px;font-size:11px;color:#888">PO Number</td><td style="padding-bottom:6px;font-size:11px;font-weight:600;color:#333;text-align:right">${form.po_number}</td></tr>` : ""}
+          <tr><td style="padding-bottom:6px;font-size:11px;color:#888">Place of Supply</td><td style="padding-bottom:6px;font-size:11px;font-weight:600;color:#333;text-align:right">${client.state || "—"}</td></tr>
+          <tr><td style="font-size:11px;color:#888">Reverse Charge</td><td style="font-size:11px;font-weight:600;color:#333;text-align:right">No</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<!-- ══ C: INVOICE SUMMARY ══ -->
+<div style="padding:20px 40px 0">
+  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:${NAVY};margin-bottom:10px">INVOICE SUMMARY</div>
+  <table style="border:1.5px solid #b0c8df;width:100%">
+    <thead>
+      <tr style="background:#f0f5fc">
+        <th style="padding:10px 14px;font-size:10.5px;font-weight:700;color:${NAVY};text-align:left;border-bottom:1.5px solid #b0c8df;width:70%">Description</th>
+        <th style="padding:10px 14px;font-size:10.5px;font-weight:700;color:${NAVY};text-align:right;border-bottom:1.5px solid #b0c8df;width:30%">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${lineItems.map((item, i) => `<tr>
+        <td style="padding:12px 14px;font-size:12.5px;color:#1a1a1a;border-bottom:1px solid #ccd9e8;line-height:1.5">
+          <span style="font-size:10px;color:#bbb;margin-right:6px">${i + 1}.</span>${item.description || "—"}
+        </td>
+        <td style="padding:12px 14px;font-size:12.5px;color:#1a1a1a;border-bottom:1px solid #ccd9e8;text-align:right;white-space:nowrap">${inr(parseFloat(item.amount || 0))}</td>
+      </tr>`).join("")}
+      <tr style="background:#f8fafc">
+        <td style="padding:10px 14px;font-size:12px;font-weight:600;color:#333;border-top:2px solid #b0c8df;border-bottom:1.5px solid #b0c8df"><strong>Subtotal</strong></td>
+        <td style="padding:10px 14px;font-size:12px;font-weight:600;color:#333;text-align:right;border-top:2px solid #b0c8df;border-bottom:1.5px solid #b0c8df;white-space:nowrap"><strong>${inr(totalTaxable)}</strong></td>
+      </tr>
+      ${taxRate > 0 ? (isIntraState
+        ? `<tr><td style="padding:9px 14px;font-size:12px;color:#555;border-bottom:1px solid #ccd9e8">CGST (${fmtRate(cgstRate)}%)</td><td style="padding:9px 14px;font-size:12px;color:#555;text-align:right;border-bottom:1px solid #ccd9e8;white-space:nowrap">${inr(cgstAmt)}</td></tr>
+           <tr><td style="padding:9px 14px;font-size:12px;color:#555;border-bottom:1px solid #ccd9e8">SGST (${fmtRate(sgstRate)}%)</td><td style="padding:9px 14px;font-size:12px;color:#555;text-align:right;border-bottom:1px solid #ccd9e8;white-space:nowrap">${inr(sgstAmt)}</td></tr>`
+        : `<tr><td style="padding:9px 14px;font-size:12px;color:#555;border-bottom:1px solid #ccd9e8">IGST (${fmtRate(igstRate)}%)</td><td style="padding:9px 14px;font-size:12px;color:#555;text-align:right;border-bottom:1px solid #ccd9e8;white-space:nowrap">${inr(igstAmt)}</td></tr>`)
+        : ""}
+      <tr style="background:${NAVY}">
+        <td style="padding:12px 14px;font-size:13px;font-weight:700;color:#fff">Total Invoice Amount</td>
+        <td style="padding:12px 14px;font-size:14px;font-weight:900;color:#fff;text-align:right;white-space:nowrap">${inr(invoiceTotal)}</td>
+      </tr>
+    </tbody>
+  </table>
+  <div style="text-align:right;margin-top:8px;font-size:11px;color:#888;font-style:italic">
+    Amount in words: <strong style="color:#333;font-style:normal">${amountInWords(invoiceTotal)}</strong>
+  </div>
+</div>
+
+<!-- ══ D: PAYMENT TERMS ══ -->
+${payTermsHtml ? `
+<div style="padding:18px 40px 0">
+  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:${NAVY};margin-bottom:9px">PAYMENT TERMS</div>
+  ${payTermsHtml}
+</div>` : ""}
+
+${form.notes ? `
+<div style="padding:12px 40px 0">
+  <span style="font-size:11.5px;color:#555;font-weight:600">Notes: </span>
+  <span style="font-size:11.5px;color:#555">${form.notes}</span>
+</div>` : ""}
+
+<!-- ══ E: BANK DETAILS ══ -->
+${(co.bank_name || co.account_number) ? `
+<div style="padding:16px 40px 0">
+  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:${NAVY};margin-bottom:7px">BANK DETAILS</div>
+  <div style="font-size:11.5px;color:#555;line-height:1.85">
+    ${co.bank_account_name ? `<strong>A/C Name:</strong> ${co.bank_account_name} &nbsp;` : ""}
+    ${co.bank_name ? `<strong>Bank:</strong> ${co.bank_name} &nbsp;` : ""}
+    ${co.account_number ? `<strong>A/C No:</strong> ${co.account_number} &nbsp;` : ""}
+    ${co.ifsc_code ? `<strong>IFSC:</strong> ${co.ifsc_code}` : ""}
+  </div>
+</div>` : ""}
+
+<!-- ══ F: SIGNATURE SECTION ══ -->
+<div style="margin:20px 40px 0;border:1.5px solid #b0c8df;border-radius:4px;overflow:hidden">
+  <table style="width:100%">
+    <tr>
+      <td style="vertical-align:top;padding:16px 20px;text-align:right">
+
+        <div style="display:inline-block;text-align:center">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:${NAVY};margin-bottom:4px">For ${co.legal_name || "Sixmend Technologies"}</div>
+          <div style="font-size:12px;font-weight:700;color:#222;margin-bottom:4px">${signatoryName}</div>
+          <div style="font-size:10px;color:#888;margin-bottom:14px">${co.signatory_designation || "Authorised Signatory"}</div>
+        </div>
+
+        <div style="display:block">
+          <div style="display:inline-flex;align-items:flex-end;justify-content:flex-end;gap:14px">
+            ${sigBase64
+              ? `<img src="${sigBase64}" alt="Signature" style="max-height:46px;max-width:120px;object-fit:contain;display:block">`
+              : `<div style="height:46px;width:80px"></div>`}
+            ${co.seal_data
+              ? `<img src="${co.seal_data}" alt="Seal" style="max-height:60px;max-width:60px;object-fit:contain;display:block">`
+              : ""}
+          </div>
+        </div>
+
+      </td>
+    </tr>
+  </table>
+</div>
+
+<!-- ══ BOTTOM BAR ══ -->
+<div style="background:${NAVY};padding:10px 40px;margin-top:20px">
+  <table>
+    <tr>
+      <td style="font-size:11px;color:#fff;font-style:italic">Thank you for your business.</td>
+      <td style="font-size:10px;color:#7eb8d4;text-align:right">
+        ${[co.legal_name || "Sixmend Technologies", co.website, co.email].filter(Boolean).join(" &nbsp;&middot;&nbsp; ")}
+      </td>
+    </tr>
+  </table>
 </div>
 
 </body></html>`;
@@ -287,6 +518,10 @@ export default function ClientDetail() {
   const [logText,   setLogText]   = useState("");
   const [logLoading, setLogLoading] = useState(false);
 
+  // Client info editing
+  const [editingClient, setEditingClient] = useState(false);
+  const [clientForm,    setClientForm]    = useState({});
+
   // Payment modal
   const [paymentModal, setPaymentModal] = useState(null);
   const [paymentForm,  setPaymentForm]  = useState(EMPTY_PAYMENT);
@@ -295,9 +530,20 @@ export default function ClientDetail() {
   const [invoiceModal, setInvoiceModal] = useState(null); // payment object
   const [invoiceForm,  setInvoiceForm]  = useState(() => mkInvoiceDefaults(null));
 
+  // Final Invoice modal
+  const [finalInvModal, setFinalInvModal] = useState(false);
+  const [finalInvForm,  setFinalInvForm]  = useState({
+    number: "", date: "", due_date: "", po_number: "",
+    items: [{ description: "", amount: "" }],
+    project_name: "", project_status: "Completed", handover_date: "",
+    tax_rate: "0",
+    payment_terms: "• The outstanding balance is payable upon completion and handover of the software, unless otherwise agreed in writing.\n• Payment Method: Bank Transfer / UPI\n• Please mention the invoice number when making the payment.",
+    notes: "",
+  });
+
   // Project value modal
   const [valueModal, setValueModal] = useState(false);
-  const [valueForm,  setValueForm]  = useState({ total_value: "", note: "" });
+  const [valueForm,  setValueForm]  = useState({ items: [{ description: "", amount: "" }], gst: "0" });
 
   // Document modal
   const [docModal,   setDocModal]   = useState(false);
@@ -319,7 +565,10 @@ export default function ClientDetail() {
   // Comment
   const [commentText, setCommentText] = useState("");
   const [saving, setSaving] = useState(false);
-  const [logoBase64, setLogoBase64] = useState("");
+  const [logoBase64, setLogoBase64]     = useState("");
+  const [companyCfg, setCompanyCfg]     = useState({});
+  const [userSignature, setUserSignature] = useState(null);
+  const [taxInvoices, setTaxInvoices]   = useState([]);
 
   // ─── Fetching ───────────────────────────────────────────────────────────────
 
@@ -328,7 +577,8 @@ export default function ClientDetail() {
   const fetchDocuments = () => api.get(`/clients/${id}/documents`).then((r) => setDocuments(r.data));
   const fetchComments  = () => api.get(`/clients/${id}/comments`).then((r) => setComments(r.data));
   const fetchClientExpenses = () => api.get(`/clients/${id}/expenses`).then((r) => setClientExpenses(r.data)).catch(() => {});
-  const fetchServices  = () => api.get(`/clients/${id}/services`).then((r) => setServices(r.data)).catch(() => {});
+  const fetchServices      = () => api.get(`/clients/${id}/services`).then((r) => setServices(r.data)).catch(() => {});
+  const fetchTaxInvoices   = () => api.get(`/clients/${id}/tax-invoices`).then((r) => setTaxInvoices(r.data)).catch(() => {});
 
   useEffect(() => {
     setLoading(true);
@@ -342,15 +592,29 @@ export default function ClientDetail() {
     fetchComments();
     fetchClientExpenses();
     fetchServices();
+    fetchTaxInvoices();
   }, [id]);
 
   useEffect(() => {
-    fetch("/logo.jpeg")
-      .then((r) => r.blob())
-      .then((blob) => {
-        const reader = new FileReader();
-        reader.onload = () => setLogoBase64(reader.result);
-        reader.readAsDataURL(blob);
+    api.get("/users/me").then((r) => setUserSignature(r.data.signature_data || null)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    api.get("/settings/company")
+      .then((r) => {
+        setCompanyCfg(r.data || {});
+        if (r.data?.logo_data) {
+          setLogoBase64(r.data.logo_data);
+        } else {
+          fetch("/logo.jpeg")
+            .then((res) => res.blob())
+            .then((blob) => {
+              const reader = new FileReader();
+              reader.onload = () => setLogoBase64(reader.result);
+              reader.readAsDataURL(blob);
+            })
+            .catch(() => {});
+        }
       })
       .catch(() => {});
   }, []);
@@ -435,15 +699,64 @@ export default function ClientDetail() {
     catch { alert("Error deleting"); }
   };
 
-  const handleSaveProjectValue = async (e) => {
+  const openEditClient = () => {
+    setClientForm({
+      name:                  client.name                  || "",
+      company:               client.company               || "",
+      email:                 client.email                 || "",
+      phone:                 client.phone                 || "",
+      address:               client.address               || "",
+      state:                 client.state                 || "",
+      state_code:            client.state_code            || "",
+      pin_code:              client.pin_code              || "",
+      gstin:                 client.gstin                 || "",
+      website:               client.website               || "",
+      bank_account_name:     client.bank_account_name     || "",
+      bank_name:             client.bank_name             || "",
+      account_number:        client.account_number        || "",
+      ifsc_code:             client.ifsc_code             || "",
+      payment_instructions:  client.payment_instructions  || "",
+      default_payment_terms: client.default_payment_terms || "",
+      status:                client.status                || "active",
+      notes:                 client.notes                 || "",
+      custom_data:           client.custom_data           || {},
+    });
+    setEditingClient(true);
+  };
+
+  const handleSaveClientInfo = async (e) => {
     e.preventDefault();
-    if (!valueForm.note.trim()) { alert("Note is required"); return; }
+    if (!clientForm.name?.trim()) { alert("Name is required"); return; }
     setSaving(true);
     try {
       const { data } = await api.put(`/clients/${id}`, {
         ...client,
-        total_value: valueForm.total_value || null,
-        total_value_note: valueForm.note.trim(),
+        ...clientForm,
+        total_value:      client.total_value,
+        total_value_note: client.total_value_note,
+      });
+      setClient(data);
+      setEditingClient(false);
+    } catch { alert("Error saving client info"); }
+    finally { setSaving(false); }
+  };
+
+  const handleSaveProjectValue = async (e) => {
+    e.preventDefault();
+    const items = (valueForm.items || []).filter(it => parseFloat(it.amount || 0) > 0);
+    if (items.length === 0) { alert("Add at least one item with an amount"); return; }
+    const subtotal = items.reduce((s, it) => s + parseFloat(it.amount || 0), 0);
+    const gstPct   = parseFloat(valueForm.gst || 0);
+    const gstAmt   = subtotal * gstPct / 100;
+    const total    = subtotal + gstAmt;
+    setSaving(true);
+    try {
+      const { data } = await api.put(`/clients/${id}`, {
+        ...client,
+        total_value:      total,
+        total_value_note: `${items.length} item(s)${gstPct > 0 ? ` + ${gstPct}% GST` : ""}`,
+        project_items:    items,
+        project_gst:      gstPct || null,
       });
       setClient(data);
       setValueModal(false);
@@ -458,7 +771,9 @@ export default function ClientDetail() {
     }
     try {
       const { data } = await api.post(`/clients/${id}/payments/${payment.id}/invoice`);
-      setInvoiceForm({ ...mkInvoiceDefaults(payment), number: data.invoice_number });
+      const defaults = mkInvoiceDefaults(payment);
+      if (companyCfg.default_payment_terms) defaults.notes = companyCfg.default_payment_terms;
+      setInvoiceForm({ ...defaults, number: data.invoice_number });
       setInvoiceModal(payment);
     } catch (err) {
       alert(err.response?.data?.error || "Error generating invoice");
@@ -473,7 +788,147 @@ export default function ClientDetail() {
       .filter((p) => p.id !== invoiceModal.id && p.status === "paid")
       .reduce((s, p) => s + parseFloat(p.amount || 0), 0);
     const ctx = effectiveValue != null ? { totalValue: effectiveValue, previouslyPaid } : null;
-    const html = buildInvoiceHTML(client, invoiceModal, invoiceForm, ctx, logoBase64);
+    const html = buildInvoiceHTML(client, invoiceModal, invoiceForm, ctx, logoBase64, companyCfg);
+    const win = window.open("", "_blank", "width=900,height=1000");
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => { win.focus(); win.print(); }, 350);
+  };
+
+  const openFinalInvoice = async () => {
+    const paidPayments = payments.filter((p) => p.status === "paid");
+    if (paidPayments.length === 0) {
+      alert("No paid payments found. Mark at least one payment as paid before generating a tax invoice.");
+      return;
+    }
+    try {
+      const [settingsRes, userRes, taxInvRes] = await Promise.all([
+        api.get("/settings/company"),
+        api.get("/users/me"),
+        api.get(`/clients/${id}/tax-invoices`),
+      ]);
+      const freshCo = settingsRes.data || {};
+      setCompanyCfg(freshCo);
+      if (freshCo.logo_data) setLogoBase64(freshCo.logo_data);
+      setUserSignature(userRes.data.signature_data || null);
+      const freshInvoices = taxInvRes.data || [];
+      setTaxInvoices(freshInvoices);
+      const activeInv = freshInvoices.find((inv) => inv.status === "active");
+      if (activeInv) {
+        alert(`Invoice ${activeInv.invoice_number} is currently active. Cancel it before generating a new invoice.`);
+        return;
+      }
+    } catch {}
+    try {
+      const { data } = await api.post(`/clients/${id}/final-invoice`);
+      const today = new Date();
+      const dueDate = new Date(today);
+      dueDate.setDate(dueDate.getDate() + 30);
+      setFinalInvForm({
+        number: data.invoice_number,
+        date: today.toISOString().split("T")[0],
+        due_date: dueDate.toISOString().split("T")[0],
+        po_number: "",
+        items: Array.isArray(client.project_items) && client.project_items.length
+          ? client.project_items.map(it => ({ description: it.description || "", amount: String(it.amount || "") }))
+          : [{ description: `Software Development, Implementation & Deployment for ${client.company || client.name}`, amount: String(client.total_value || "") }],
+        project_name: client.company || client.name || "",
+        project_status: "Completed",
+        handover_date: today.toISOString().split("T")[0],
+        tax_rate: client.project_gst != null ? String(client.project_gst) : "0",
+        payment_terms: companyCfg.default_payment_terms ||
+          "• The outstanding balance is payable upon completion and handover of the software, unless otherwise agreed in writing.\n• Payment Method: Bank Transfer / UPI\n• Please mention the invoice number when making the payment.",
+        notes: "",
+      });
+      setFinalInvModal(true);
+    } catch (err) {
+      alert(err.response?.data?.error || "Error generating tax invoice");
+    }
+  };
+
+  const handlePrintFinalInvoice = async () => {
+    const isCancelled = taxInvoices.some(
+      (inv) => inv.invoice_number === finalInvForm.number && inv.status === "cancelled"
+    );
+    if (isCancelled) {
+      alert(`Invoice ${finalInvForm.number} was cancelled. Close this modal and generate a new invoice.`);
+      return;
+    }
+    const paidPayments = payments.filter((p) => p.status === "paid");
+    let freshLogo = logoBase64;
+    let freshCo = companyCfg;
+    let freshSig = userSignature;
+    try {
+      const [settingsRes, userRes] = await Promise.all([
+        api.get("/settings/company"),
+        api.get("/users/me"),
+      ]);
+      freshCo = settingsRes.data || {};
+      if (freshCo.logo_data) freshLogo = freshCo.logo_data;
+      freshSig = userRes.data.signature_data || null;
+    } catch {}
+    const html = buildFinalInvoiceHTML(client, paidPayments, finalInvForm, freshLogo, freshCo, user, freshSig, window.location.origin);
+    const win = window.open("", "_blank", "width=900,height=1000");
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => { win.focus(); win.print(); }, 350);
+    // Save to invoice history (silent — don't block print)
+    const subtotal = (finalInvForm.items || []).reduce((s, it) => s + parseFloat(it.amount || 0), 0);
+    const taxRateN = parseFloat(finalInvForm.tax_rate || 0);
+    const total = subtotal + subtotal * taxRateN / 100;
+    try {
+      await api.post(`/clients/${id}/tax-invoices`, {
+        invoice_number: finalInvForm.number,
+        invoice_date: finalInvForm.date,
+        total_amount: total,
+      });
+      fetchTaxInvoices();
+    } catch {}
+  };
+
+  const cancelTaxInvoice = async (invId) => {
+    if (!confirm("Cancel this invoice? This action cannot be undone.")) return;
+    try {
+      await api.patch(`/clients/${id}/tax-invoices/${invId}/cancel`);
+      fetchTaxInvoices();
+    } catch { alert("Error cancelling invoice"); }
+  };
+
+  const downloadTaxInvoice = async (inv) => {
+    let freshLogo = logoBase64;
+    let freshCo = companyCfg;
+    let freshSig = userSignature;
+    let freshClient = client;
+    try {
+      const [settingsRes, userRes, clientRes] = await Promise.all([
+        api.get("/settings/company"),
+        api.get("/users/me"),
+        api.get(`/clients/${id}`),
+      ]);
+      freshCo = settingsRes.data || {};
+      if (freshCo.logo_data) freshLogo = freshCo.logo_data;
+      freshSig = userRes.data.signature_data || null;
+      if (clientRes.data) freshClient = clientRes.data;
+    } catch {}
+    const invDate = inv.invoice_date ? inv.invoice_date.split("T")[0] : "";
+    const form = {
+      number: inv.invoice_number,
+      date: invDate,
+      due_date: "",
+      po_number: "",
+      items: Array.isArray(freshClient.project_items) && freshClient.project_items.length
+        ? freshClient.project_items.map((it) => ({ description: it.description || "", amount: String(it.amount || "") }))
+        : [{ description: `Software Development, Implementation & Deployment for ${freshClient.company || freshClient.name}`, amount: String(freshClient.total_value || "") }],
+      project_name: freshClient.company || freshClient.name || "",
+      project_status: "Completed",
+      handover_date: invDate,
+      tax_rate: freshClient.project_gst != null ? String(freshClient.project_gst) : "0",
+      payment_terms: freshCo.default_payment_terms ||
+        "• The outstanding balance is payable upon completion and handover of the software, unless otherwise agreed in writing.\n• Payment Method: Bank Transfer / UPI\n• Please mention the invoice number when making the payment.",
+      notes: "",
+    };
+    const paidPayments = payments.filter((p) => p.status === "paid");
+    const html = buildFinalInvoiceHTML(freshClient, paidPayments, form, freshLogo, freshCo, user, freshSig, window.location.origin);
     const win = window.open("", "_blank", "width=900,height=1000");
     win.document.write(html);
     win.document.close();
@@ -557,25 +1012,173 @@ export default function ClientDetail() {
     const totalPending = payments.filter((p) => p.status === "pending").reduce((a, p) => a + parseFloat(p.amount || 0), 0);
     return (
       <div className="flex flex-col gap-5">
-        <div className="rounded-xl p-5 grid grid-cols-2 gap-x-8 gap-y-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-          <div className="col-span-2 flex items-center justify-between mb-1">
+        <div className="rounded-xl p-5" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
             <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>Client Information</span>
-            <Badge value={client.status} />
+            {!editingClient ? (
+              <button onClick={openEditClient} className="flex items-center gap-1 text-[11px] hover:opacity-70 transition-opacity" style={{ color: C.textMuted }}>
+                <Pencil size={12} /> Edit
+              </button>
+            ) : null}
           </div>
-          <InfoField label="Company" value={client.company} />
-          <InfoField label="Email"   value={client.email} />
-          <InfoField label="Phone"   value={client.phone} />
-          <InfoField label="Address" value={client.address} />
-          {client.notes && <InfoField label="Notes" value={client.notes} full />}
-          {customFields.length > 0 && client.custom_data && Object.keys(client.custom_data).length > 0 && (
-            <>
-              <div className="col-span-2 pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
-                <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>Additional Fields</div>
+
+          {editingClient ? (
+            <form onSubmit={handleSaveClientInfo} className="flex flex-col gap-4">
+
+              {/* Basic */}
+              <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>Basic Info</div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Name *" value={clientForm.name} onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })} required placeholder="Client name" />
+                <Input label="Legal Business Name" value={clientForm.company} onChange={(e) => setClientForm({ ...clientForm, company: e.target.value })} placeholder="Registered company name" />
+                <Input label="Business Email" type="email" value={clientForm.email} onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })} placeholder="email@example.com" />
+                <Input label="Contact Number" value={clientForm.phone} onChange={(e) => setClientForm({ ...clientForm, phone: e.target.value })} placeholder="+91 00000 00000" />
+                <Input label="Website" value={clientForm.website} onChange={(e) => setClientForm({ ...clientForm, website: e.target.value })} placeholder="www.example.com" />
+                <Select label="Status" value={clientForm.status} onChange={(e) => setClientForm({ ...clientForm, status: e.target.value })}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="prospect">Prospect</option>
+                </Select>
               </div>
-              {customFields.map((f) => (
-                <InfoField key={f.id} label={f.label} value={client.custom_data?.[f.field_key] || null} />
-              ))}
-            </>
+
+              {/* Address */}
+              <div className="pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
+                <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: C.textMuted }}>Registered Address</div>
+              </div>
+              <Textarea label="Address" value={clientForm.address} onChange={(e) => setClientForm({ ...clientForm, address: e.target.value })} rows={2} placeholder="Street, Building, Area" />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <Input label="State" value={clientForm.state} onChange={(e) => setClientForm({ ...clientForm, state: e.target.value })} placeholder="e.g. Kerala" />
+                </div>
+                <Input label="State Code" value={clientForm.state_code} onChange={(e) => setClientForm({ ...clientForm, state_code: e.target.value })} placeholder="e.g. 32" />
+              </div>
+              <Input label="PIN Code" value={clientForm.pin_code} onChange={(e) => setClientForm({ ...clientForm, pin_code: e.target.value })} placeholder="e.g. 682001" />
+
+              {/* Tax */}
+              <div className="pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
+                <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: C.textMuted }}>Tax Identity</div>
+              </div>
+              <Input label="GSTIN" value={clientForm.gstin} onChange={(e) => setClientForm({ ...clientForm, gstin: e.target.value })} placeholder="e.g. 32AABCS1234A1Z5" />
+
+              {/* Bank */}
+              <div className="pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
+                <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: C.textMuted }}>Bank Account Details</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Account Name" value={clientForm.bank_account_name} onChange={(e) => setClientForm({ ...clientForm, bank_account_name: e.target.value })} placeholder="Account holder name" />
+                <Input label="Bank Name" value={clientForm.bank_name} onChange={(e) => setClientForm({ ...clientForm, bank_name: e.target.value })} placeholder="e.g. HDFC Bank" />
+                <Input label="Account Number" value={clientForm.account_number} onChange={(e) => setClientForm({ ...clientForm, account_number: e.target.value })} placeholder="0000000000" />
+                <Input label="IFSC Code" value={clientForm.ifsc_code} onChange={(e) => setClientForm({ ...clientForm, ifsc_code: e.target.value })} placeholder="HDFC0001234" />
+              </div>
+              <Textarea label="Payment Instructions" value={clientForm.payment_instructions} onChange={(e) => setClientForm({ ...clientForm, payment_instructions: e.target.value })} rows={2} placeholder="Additional payment instructions…" />
+
+              {/* Invoice Defaults */}
+              <div className="pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
+                <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: C.textMuted }}>Invoice Defaults</div>
+              </div>
+              <Textarea label="Default Payment Terms" value={clientForm.default_payment_terms} onChange={(e) => setClientForm({ ...clientForm, default_payment_terms: e.target.value })} rows={2} placeholder="e.g. Payment due within 30 days of invoice date." />
+
+              {/* Notes */}
+              <div className="pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
+                <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: C.textMuted }}>Notes</div>
+              </div>
+              <Textarea label="Internal Notes" value={clientForm.notes} onChange={(e) => setClientForm({ ...clientForm, notes: e.target.value })} rows={2} placeholder="Internal notes…" />
+
+              {/* Custom Fields */}
+              {customFields.length > 0 && (
+                <>
+                  <div className="pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
+                    <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: C.textMuted }}>Additional Fields</div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {customFields.map((f) => (
+                      f.type === "textarea" ? (
+                        <div key={f.id} className="col-span-2">
+                          <Textarea label={f.label} value={clientForm.custom_data?.[f.field_key] || ""} onChange={(e) => setClientForm({ ...clientForm, custom_data: { ...clientForm.custom_data, [f.field_key]: e.target.value } })} rows={2} />
+                        </div>
+                      ) : f.type === "select" && Array.isArray(f.options) ? (
+                        <Select key={f.id} label={f.label} value={clientForm.custom_data?.[f.field_key] || ""} onChange={(e) => setClientForm({ ...clientForm, custom_data: { ...clientForm.custom_data, [f.field_key]: e.target.value } })}>
+                          <option value="">— Select —</option>
+                          {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                        </Select>
+                      ) : (
+                        <Input key={f.id} label={f.label} type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"} value={clientForm.custom_data?.[f.field_key] || ""} onChange={(e) => setClientForm({ ...clientForm, custom_data: { ...clientForm.custom_data, [f.field_key]: e.target.value } })} />
+                      )
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div className="flex justify-end gap-2 pt-1">
+                <Button type="button" variant="secondary" onClick={() => setEditingClient(false)}>Cancel</Button>
+                <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+              </div>
+            </form>
+          ) : (
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+              <InfoField label="Name"               value={client.name} />
+              <InfoField label="Legal Business Name" value={client.company} />
+              <InfoField label="Business Email"      value={client.email} />
+              <InfoField label="Contact Number"      value={client.phone} />
+              <InfoField label="Website"             value={client.website} />
+              <InfoField label="Status"              value={<Badge value={client.status} />} />
+              {(client.address || client.state || client.pin_code) && (
+                <>
+                  <div className="col-span-2 pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
+                    <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>Registered Address</div>
+                  </div>
+                  <InfoField label="Address"    value={client.address} full />
+                  <InfoField label="State"      value={client.state ? `${client.state}${client.state_code ? ` (${client.state_code})` : ""}` : null} />
+                  <InfoField label="PIN Code"   value={client.pin_code} />
+                </>
+              )}
+              {client.gstin && (
+                <>
+                  <div className="col-span-2 pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
+                    <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>Tax Identity</div>
+                  </div>
+                  <InfoField label="GSTIN" value={client.gstin} />
+                </>
+              )}
+              {(client.bank_account_name || client.bank_name || client.account_number) && (
+                <>
+                  <div className="col-span-2 pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
+                    <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>Bank Account</div>
+                  </div>
+                  <InfoField label="Account Name"    value={client.bank_account_name} />
+                  <InfoField label="Bank"            value={client.bank_name} />
+                  <InfoField label="Account Number"  value={client.account_number} />
+                  <InfoField label="IFSC"            value={client.ifsc_code} />
+                  {client.payment_instructions && <InfoField label="Payment Instructions" value={client.payment_instructions} full />}
+                </>
+              )}
+              {client.default_payment_terms && (
+                <>
+                  <div className="col-span-2 pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
+                    <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>Invoice Defaults</div>
+                  </div>
+                  <InfoField label="Default Payment Terms" value={client.default_payment_terms} full />
+                </>
+              )}
+              {client.notes && (
+                <>
+                  <div className="col-span-2 pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
+                    <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>Notes</div>
+                  </div>
+                  <InfoField label="Internal Notes" value={client.notes} full />
+                </>
+              )}
+              {customFields.length > 0 && client.custom_data && Object.keys(client.custom_data).length > 0 && (
+                <>
+                  <div className="col-span-2 pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
+                    <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>Additional Fields</div>
+                  </div>
+                  {customFields.map((f) => (
+                    <InfoField key={f.id} label={f.label} value={client.custom_data?.[f.field_key] || null} />
+                  ))}
+                </>
+              )}
+            </div>
           )}
         </div>
         <div className="grid grid-cols-4 gap-3">
@@ -763,12 +1366,20 @@ export default function ClientDetail() {
             <div className="text-[20px] font-bold leading-tight" style={{ color: C.blueLight }}>
               {effectiveValue != null ? fmt(effectiveValue) : <span className="text-[13px]" style={{ color: C.textMuted }}>Not set</span>}
             </div>
-            {client.total_value_note && (
-              <div className="text-[10px] truncate" style={{ color: C.textMuted }}>{client.total_value_note}</div>
+            {client.project_gst > 0 && (
+              <div className="text-[10px]" style={{ color: C.textMuted }}>Amount incl. {client.project_gst}% GST</div>
             )}
             <button
               title="Edit project value"
-              onClick={() => { setValueForm({ total_value: effectiveValue != null ? String(effectiveValue) : "", note: "" }); setValueModal(true); }}
+              onClick={() => {
+                setValueForm({
+                  items: Array.isArray(client.project_items) && client.project_items.length
+                    ? client.project_items.map(it => ({ description: it.description || "", amount: String(it.amount || "") }))
+                    : [{ description: "", amount: "" }],
+                  gst: client.project_gst != null ? String(client.project_gst) : "0",
+                });
+                setValueModal(true);
+              }}
               className="absolute top-3 right-3 hover:opacity-70 transition-opacity"
               style={{ color: C.textMuted }}
             >
@@ -779,7 +1390,10 @@ export default function ClientDetail() {
           <StatCard label="Remaining" value={remaining != null ? fmt(remaining) : fmt(pending)} color={C.orange} />
           <StatCard label="Overdue"   value={fmt(overdue)}                                       color={C.red} />
         </div>
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={openFinalInvoice}>
+            <span className="flex items-center gap-1.5"><FileDown size={13} /> Tax Invoice</span>
+          </Button>
           <Button onClick={() => { setPaymentForm(EMPTY_PAYMENT); setPaymentModal({ mode: "add" }); }}>
             <span className="flex items-center gap-1.5"><Plus size={13} /> Add Payment</span>
           </Button>
@@ -826,6 +1440,51 @@ export default function ClientDetail() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {/* ── Invoice History ── */}
+        {taxInvoices.length > 0 && (
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: C.textMuted }}>Invoice History</div>
+            <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
+              <table className="w-full text-[13px]" style={{ borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${C.border}`, background: "var(--table-header-bg)" }}>
+                    {["Invoice #", "Date", "Amount", "By", "Status", ""].map((h) => (
+                      <th key={h} className="px-4 py-3 text-left text-[11px] font-medium" style={{ color: C.textMuted }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {taxInvoices.map((inv, i) => (
+                    <tr key={inv.id} style={{ borderBottom: i < taxInvoices.length - 1 ? `1px solid ${C.border}` : "none", background: C.card }}>
+                      <td className="px-4 py-3 font-medium" style={{ color: C.textPrimary }}>{inv.invoice_number}</td>
+                      <td className="px-4 py-3" style={{ color: C.textMuted }}>{fmtDate(inv.invoice_date || inv.created_at)}</td>
+                      <td className="px-4 py-3 font-medium" style={{ color: C.green }}>{inv.total_amount ? fmt(inv.total_amount) : "—"}</td>
+                      <td className="px-4 py-3 text-[12px]" style={{ color: C.textMuted }}>{inv.created_by || "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+                          style={{ background: inv.status === "cancelled" ? `${C.red}22` : `${C.green}22`, color: inv.status === "cancelled" ? C.red : C.green }}>
+                          {inv.status === "cancelled" ? "Cancelled" : "Active"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {inv.status !== "cancelled" && (
+                          <span className="flex items-center justify-end gap-3">
+                            <button onClick={() => downloadTaxInvoice(inv)} className="flex items-center gap-1 text-[11px] hover:opacity-70 transition-opacity" style={{ color: C.textPrimary }}>
+                              <Download size={12} /> Download
+                            </button>
+                            <button onClick={() => cancelTaxInvoice(inv.id)} className="text-[11px] hover:opacity-70 transition-opacity" style={{ color: C.red }}>
+                              Cancel
+                            </button>
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -1397,19 +2056,220 @@ export default function ClientDetail() {
         );
       })()}
 
-      {/* ── Project Value Modal ── */}
-      {valueModal && (
-        <Modal title="Edit Project Value" onClose={() => setValueModal(false)} width="420px">
-          <form onSubmit={handleSaveProjectValue} className="flex flex-col gap-4">
-            <Input label="Total Project Value (₹)" type="number" value={valueForm.total_value} onChange={(e) => setValueForm({ ...valueForm, total_value: e.target.value })} placeholder="e.g. 500000" />
-            <Textarea label="Reason / Note *" value={valueForm.note} onChange={(e) => setValueForm({ ...valueForm, note: e.target.value })} required placeholder="e.g. Value updated per signed agreement" rows={2} />
-            <div className="flex justify-end gap-2 pt-1">
-              <Button variant="secondary" onClick={() => setValueModal(false)}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+      {/* ── Tax Invoice Modal ── */}
+      {finalInvModal && (() => {
+        const paidPayments   = payments.filter((p) => p.status === "paid");
+        const subtotalAmt    = (finalInvForm.items || []).reduce((s, it) => s + parseFloat(it.amount || 0), 0);
+        const taxRate        = parseFloat(finalInvForm.tax_rate || 0);
+        const tax            = subtotalAmt * (taxRate / 100);
+        const invoiceTotal   = subtotalAmt + tax;
+        const paidSoFar      = paidPayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+        const outstanding    = Math.max(0, invoiceTotal - paidSoFar);
+        const setItem        = (idx, key, val) => {
+          const items = finalInvForm.items.map((it, i) => i === idx ? { ...it, [key]: val } : it);
+          setFinalInvForm({ ...finalInvForm, items });
+        };
+        const addItem        = () => setFinalInvForm({ ...finalInvForm, items: [...finalInvForm.items, { description: "", amount: "" }] });
+        const removeItem     = (idx) => setFinalInvForm({ ...finalInvForm, items: finalInvForm.items.filter((_, i) => i !== idx) });
+        return (
+          <Modal title="Generate Tax Invoice" onClose={() => setFinalInvModal(false)} width="600px">
+            <div className="flex flex-col gap-4">
+
+              {/* Row 1: Invoice # + Issue Date */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[12px] block mb-1" style={{ color: C.textMuted }}>Invoice Number</label>
+                  <input readOnly value={finalInvForm.number} className="w-full px-3 py-2 rounded-lg text-[13px] outline-none cursor-not-allowed" style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.textMuted }} />
+                </div>
+                <div>
+                  <label className="text-[12px] block mb-1" style={{ color: C.textMuted }}>Issue Date</label>
+                  <input readOnly value={finalInvForm.date} className="w-full px-3 py-2 rounded-lg text-[13px] outline-none cursor-not-allowed" style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.textMuted }} />
+                </div>
+              </div>
+
+              {/* Row 2: Due Date + PO Number */}
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Due Date" type="date" value={finalInvForm.due_date} onChange={(e) => setFinalInvForm({ ...finalInvForm, due_date: e.target.value })} />
+                <Input label="PO Number (optional)" value={finalInvForm.po_number} onChange={(e) => setFinalInvForm({ ...finalInvForm, po_number: e.target.value })} placeholder="e.g. PO-2024-001" />
+              </div>
+
+              {/* Line Items */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-[12px] font-medium" style={{ color: C.textMuted }}>Invoice Items</label>
+                  <button type="button" onClick={addItem} className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg" style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.green }}>
+                    <Plus size={11} /> Add Row
+                  </button>
+                </div>
+                <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
+                  <div className="grid text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5" style={{ gridTemplateColumns: "1fr 120px 28px", background: "var(--table-header-bg)", color: C.textMuted }}>
+                    <span>Description</span><span className="text-right pr-2">Amount (₹)</span><span />
+                  </div>
+                  {(finalInvForm.items || []).map((item, idx) => (
+                    <div key={idx} className="grid items-center" style={{ gridTemplateColumns: "1fr 120px 28px", borderTop: `1px solid ${C.border}` }}>
+                      <input
+                        value={item.description}
+                        onChange={(e) => setItem(idx, "description", e.target.value)}
+                        placeholder="e.g. Frontend Development"
+                        className="px-3 py-2 text-[12.5px] outline-none bg-transparent"
+                        style={{ color: C.textPrimary, borderRight: `1px solid ${C.border}` }}
+                      />
+                      <input
+                        type="number"
+                        value={item.amount}
+                        onChange={(e) => setItem(idx, "amount", e.target.value)}
+                        placeholder="0"
+                        className="px-3 py-2 text-[12.5px] outline-none bg-transparent text-right"
+                        style={{ color: C.textPrimary, borderRight: `1px solid ${C.border}` }}
+                      />
+                      <div className="flex items-center justify-center">
+                        {(finalInvForm.items || []).length > 1 && (
+                          <button type="button" onClick={() => removeItem(idx)} style={{ color: C.red }}>
+                            <Trash2 size={11} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="grid px-3 py-2 text-[12px] font-semibold" style={{ gridTemplateColumns: "1fr 120px 28px", borderTop: `1px solid ${C.border}`, background: "var(--table-header-bg)" }}>
+                    <span style={{ color: C.textMuted }}>Subtotal</span>
+                    <span className="text-right pr-2" style={{ color: C.textPrimary }}>{fmt(subtotalAmt)}</span>
+                    <span />
+                  </div>
+                </div>
+              </div>
+
+              {/* Project Name + Status */}
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Project Name" value={finalInvForm.project_name} onChange={(e) => setFinalInvForm({ ...finalInvForm, project_name: e.target.value })} placeholder="e.g. ERP System" />
+                <div>
+                  <label className="text-[12px] block mb-1" style={{ color: C.textMuted }}>Project Status</label>
+                  <select value={finalInvForm.project_status} onChange={(e) => setFinalInvForm({ ...finalInvForm, project_status: e.target.value })} className="w-full px-3 py-2 rounded-lg text-[13px] outline-none" style={{ background: C.card, border: `1px solid ${C.border}`, color: C.textPrimary }}>
+                    <option>Completed</option>
+                    <option>In Progress</option>
+                    <option>Delivered</option>
+                    <option>On Hold</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Handover Date */}
+              <Input label="Completion / Handover Date" type="date" value={finalInvForm.handover_date} onChange={(e) => setFinalInvForm({ ...finalInvForm, handover_date: e.target.value })} />
+
+              {/* GST Rate */}
+              <Input label="GST / Tax Rate (%)" type="number" value={finalInvForm.tax_rate} onChange={(e) => setFinalInvForm({ ...finalInvForm, tax_rate: e.target.value })} placeholder="0" />
+
+              {/* Payment Terms */}
+              <Textarea label="Payment Terms" value={finalInvForm.payment_terms} onChange={(e) => setFinalInvForm({ ...finalInvForm, payment_terms: e.target.value })} rows={3} placeholder="• Payment terms…" />
+
+              {/* Notes */}
+              <Textarea label="Notes (optional)" value={finalInvForm.notes} onChange={(e) => setFinalInvForm({ ...finalInvForm, notes: e.target.value })} rows={2} placeholder="Any additional notes…" />
+
+              {/* Summary + Download */}
+              <div className="rounded-lg p-3 flex items-center justify-between" style={{ background: C.bg, border: `1px solid ${C.border}` }}>
+                <div className="flex flex-col gap-0.5">
+                  <div className="text-[12px]" style={{ color: C.textMuted }}>
+                    Subtotal: <span style={{ color: C.textPrimary, fontWeight: 600 }}>{fmt(subtotalAmt)}</span>
+                  </div>
+                  {taxRate > 0 && (
+                    <div className="text-[11px]" style={{ color: C.textMuted }}>
+                      GST ({taxRate}%): {fmt(tax)}
+                    </div>
+                  )}
+                  <div className="text-[13px] font-semibold" style={{ color: C.textPrimary }}>
+                    Invoice Total: {fmt(invoiceTotal)}
+                  </div>
+                  <div className="text-[11px]" style={{ color: C.textMuted }}>
+                    Paid: <span style={{ color: C.green, fontWeight: 500 }}>{fmt(paidSoFar)}</span>
+                    &nbsp;·&nbsp; Balance Due: <span style={{ color: outstanding > 0 ? C.red : C.green, fontWeight: 500 }}>{fmt(outstanding)}</span>
+                  </div>
+                </div>
+                <Button onClick={handlePrintFinalInvoice} disabled={subtotalAmt <= 0}>
+                  <span className="flex items-center gap-1.5"><Download size={13} /> Download PDF</span>
+                </Button>
+              </div>
+
             </div>
-          </form>
-        </Modal>
-      )}
+          </Modal>
+        );
+      })()}
+
+      {/* ── Project Value Modal ── */}
+      {valueModal && (() => {
+        const vSubtotal = (valueForm.items || []).reduce((s, it) => s + parseFloat(it.amount || 0), 0);
+        const vGst      = parseFloat(valueForm.gst || 0);
+        const vGstAmt   = vSubtotal * vGst / 100;
+        const vTotal    = vSubtotal + vGstAmt;
+        const setVItem  = (idx, key, val) => {
+          const items = valueForm.items.map((it, i) => i === idx ? { ...it, [key]: val } : it);
+          setValueForm({ ...valueForm, items });
+        };
+        const addVItem  = () => setValueForm({ ...valueForm, items: [...valueForm.items, { description: "", amount: "" }] });
+        const remVItem  = (idx) => setValueForm({ ...valueForm, items: valueForm.items.filter((_, i) => i !== idx) });
+        return (
+          <Modal title="Set Project Value" onClose={() => setValueModal(false)} width="520px">
+            <form onSubmit={handleSaveProjectValue} className="flex flex-col gap-4">
+
+              {/* Items table */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-[12px] font-medium" style={{ color: C.textMuted }}>Breakdown</label>
+                  <button type="button" onClick={addVItem} className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg" style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.green }}>
+                    <Plus size={11} /> Add Row
+                  </button>
+                </div>
+                <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
+                  <div className="grid text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5" style={{ gridTemplateColumns: "1fr 130px 28px", background: "var(--table-header-bg)", color: C.textMuted }}>
+                    <span>Description</span><span className="text-right pr-2">Amount (₹)</span><span />
+                  </div>
+                  {(valueForm.items || []).map((item, idx) => (
+                    <div key={idx} className="grid items-center" style={{ gridTemplateColumns: "1fr 130px 28px", borderTop: `1px solid ${C.border}` }}>
+                      <input
+                        value={item.description}
+                        onChange={(e) => setVItem(idx, "description", e.target.value)}
+                        placeholder={`e.g. Module ${idx + 1}`}
+                        className="px-3 py-2 text-[12.5px] outline-none bg-transparent"
+                        style={{ color: C.textPrimary, borderRight: `1px solid ${C.border}` }}
+                      />
+                      <input
+                        type="number"
+                        value={item.amount}
+                        onChange={(e) => setVItem(idx, "amount", e.target.value)}
+                        placeholder="0"
+                        className="px-3 py-2 text-[12.5px] outline-none bg-transparent text-right"
+                        style={{ color: C.textPrimary, borderRight: `1px solid ${C.border}` }}
+                      />
+                      <div className="flex items-center justify-center">
+                        {(valueForm.items || []).length > 1 && (
+                          <button type="button" onClick={() => remVItem(idx)} style={{ color: C.red }}><Trash2 size={11} /></button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* GST + Live total */}
+              <div className="flex items-end gap-3">
+                <div style={{ width: 130 }}>
+                  <Input label="GST %" type="number" value={valueForm.gst} onChange={(e) => setValueForm({ ...valueForm, gst: e.target.value })} placeholder="0" />
+                </div>
+                <div className="flex-1 rounded-lg px-4 py-3" style={{ background: C.bg, border: `1px solid ${C.border}` }}>
+                  <div className="text-[11px]" style={{ color: C.textMuted }}>Subtotal: <span style={{ color: C.textPrimary }}>{fmt(vSubtotal)}</span></div>
+                  {vGst > 0 && <div className="text-[11px]" style={{ color: C.textMuted }}>GST ({vGst}%): <span style={{ color: C.textPrimary }}>{fmt(vGstAmt)}</span></div>}
+                  <div className="text-[14px] font-bold mt-0.5" style={{ color: C.blueLight }}>Total: {fmt(vTotal)}</div>
+                  {vGst > 0 && <div className="text-[10px]" style={{ color: C.textMuted }}>Amount incl. GST</div>}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="secondary" onClick={() => setValueModal(false)}>Cancel</Button>
+                <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+              </div>
+            </form>
+          </Modal>
+        );
+      })()}
 
       {/* ── Document Modal ── */}
       {docModal && (

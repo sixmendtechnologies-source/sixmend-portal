@@ -143,7 +143,7 @@ router.post("/payments/:paymentId/invoice", requireAuth, async (req, res) => {
     if (!invoiceNumber) {
       const seq = await pool.query("SELECT nextval('invoice_number_seq')");
       const n = seq.rows[0].nextval;
-      invoiceNumber = `INV-${new Date().getFullYear()}-${String(n).padStart(4, "0")}`;
+      invoiceNumber = `SIXINV/${new Date().getFullYear()}/${String(n).padStart(3, "0")}`;
       await pool.query(
         "UPDATE client_payments SET invoice_number=$1, invoice_generated_at=NOW() WHERE id=$2",
         [invoiceNumber, req.params.paymentId]
@@ -154,6 +154,83 @@ router.post("/payments/:paymentId/invoice", requireAuth, async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Server error" });
   }
+});
+
+router.post("/final-invoice", requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT COUNT(*) FROM client_payments WHERE client_id=$1 AND status='paid'",
+      [req.params.id]
+    );
+    if (parseInt(rows[0].count) === 0) {
+      return res.status(400).json({ error: "No paid payments found for this client" });
+    }
+    const activeCheck = await pool.query(
+      "SELECT invoice_number FROM client_tax_invoices WHERE client_id=$1 AND status='active'",
+      [req.params.id]
+    );
+    if (activeCheck.rows[0]) {
+      return res.status(409).json({
+        error: `Invoice ${activeCheck.rows[0].invoice_number} is already active. Cancel it before generating a new invoice.`,
+      });
+    }
+    const seq = await pool.query("SELECT nextval('invoice_number_seq')");
+    const n = seq.rows[0].nextval;
+    const invoiceNumber = `SIXINV/${new Date().getFullYear()}/${String(n).padStart(3, "0")}`;
+    res.json({ invoice_number: invoiceNumber });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ─── Tax Invoice History ──────────────────────────────────────────────────────
+
+router.get("/tax-invoices", requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT * FROM client_tax_invoices WHERE client_id=$1 ORDER BY created_at DESC",
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch { res.status(500).json({ error: "Server error" }); }
+});
+
+router.post("/tax-invoices", requireAuth, async (req, res) => {
+  const { invoice_number, invoice_date, total_amount } = req.body;
+  if (!invoice_number) return res.status(400).json({ error: "Invoice number required" });
+  try {
+    const existing = await pool.query(
+      "SELECT id, status FROM client_tax_invoices WHERE client_id=$1 AND invoice_number=$2",
+      [req.params.id, invoice_number]
+    );
+    if (existing.rows[0]) {
+      if (existing.rows[0].status === "cancelled") {
+        return res.status(409).json({ error: `Invoice ${invoice_number} was cancelled and cannot be reused.` });
+      }
+      return res.json(existing.rows[0]);
+    }
+    const { rows } = await pool.query(
+      `INSERT INTO client_tax_invoices (client_id, invoice_number, invoice_date, total_amount, created_by)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [req.params.id, invoice_number, invoice_date || null, total_amount || null, req.user?.name || null]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.patch("/tax-invoices/:invId/cancel", requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "UPDATE client_tax_invoices SET status='cancelled' WHERE id=$1 AND client_id=$2 RETURNING *",
+      [req.params.invId, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    res.json(rows[0]);
+  } catch { res.status(500).json({ error: "Server error" }); }
 });
 
 // ─── Documents ────────────────────────────────────────────────────────────────

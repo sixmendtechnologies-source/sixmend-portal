@@ -16,6 +16,7 @@ import publicRoutes from "./routes/public.js";
 import userRoutes from "./routes/users.js";
 import customFieldRoutes from "./routes/custom-fields.js";
 import eventsRoutes from "./routes/events.js";
+import settingsRoutes from "./routes/settings.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -23,7 +24,7 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(cors({ origin: "*", credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
@@ -35,6 +36,7 @@ app.use("/api/public", publicRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/custom-fields", customFieldRoutes);
 app.use("/api/events", eventsRoutes);
+app.use("/api/settings", settingsRoutes);
 
 app.get("/api/health", (_, res) => res.json({ status: "ok" }));
 

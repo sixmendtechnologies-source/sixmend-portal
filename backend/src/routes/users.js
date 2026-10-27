@@ -103,6 +103,32 @@ router.patch("/:id/reinvite", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+router.get("/me", requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT id, name, email, role, status, signature_data FROM users WHERE id = $1",
+      [req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+    res.json(rows[0]);
+  } catch {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.patch("/me/signature", requireAuth, async (req, res) => {
+  const { signature_data } = req.body;
+  try {
+    const { rows } = await pool.query(
+      "UPDATE users SET signature_data=$1 WHERE id=$2 RETURNING id, name, email, role, signature_data",
+      [signature_data || null, req.user.id]
+    );
+    res.json(rows[0]);
+  } catch {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
   if (parseInt(req.params.id) === req.user.id) {
     return res.status(400).json({ error: "Cannot delete your own account" });

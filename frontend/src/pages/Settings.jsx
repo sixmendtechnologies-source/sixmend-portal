@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Plus, Trash2, RefreshCw, UserX, UserCheck,
-  Users, Palette, Sun, Moon, Sliders, Pencil, X,
+  Users, Palette, Sun, Moon, Sliders, Pencil, X, Building2, Upload,
 } from "lucide-react";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
@@ -10,13 +10,14 @@ import Table from "../components/ui/Table";
 import Modal from "../components/ui/Modal";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
-import { Input, Select } from "../components/ui/Input";
+import { Input, Select, Textarea } from "../components/ui/Input";
 import { C } from "../utils/colors";
 
 const TABS = [
-  { key: "users", label: "User Management", icon: Users },
-  { key: "appearance", label: "Appearance", icon: Palette },
-  { key: "fields", label: "Field Update", icon: Sliders },
+  { key: "users",    label: "User Management", icon: Users },
+  { key: "appearance", label: "Appearance",   icon: Palette },
+  { key: "fields",   label: "Field Update",   icon: Sliders },
+  { key: "company",  label: "Company",         icon: Building2 },
 ];
 
 const EMPTY_USER = { name: "", email: "", role: "member" };
@@ -403,11 +404,45 @@ function UsersTab() {
   const [deleteId, setDeleteId] = useState(null);
   const [reinviteId, setReinviteId] = useState(null);
 
+  const sigInputRef = useRef(null);
+  const [mySig, setMySig] = useState(null);
+  const [sigSaving, setSigSaving] = useState(false);
+  const [sigSaved, setSigSaved] = useState(false);
+
   const fetchUsers = () => {
     setLoading(true);
     api.get("/users").then((r) => setUsers(r.data)).finally(() => setLoading(false));
   };
   useEffect(() => { fetchUsers(); }, []);
+
+  useEffect(() => {
+    api.get("/users/me").then((r) => setMySig(r.data.signature_data || null)).catch(() => {});
+  }, []);
+
+  const handleSigUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 1 * 1024 * 1024) { alert("Signature image must be under 1 MB"); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => setMySig(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveSig = async () => {
+    setSigSaving(true);
+    try {
+      await api.patch("/users/me/signature", { signature_data: mySig });
+      setSigSaved(true);
+      setTimeout(() => setSigSaved(false), 2500);
+    } catch (err) {
+      alert(err.response?.data?.error || "Error saving signature");
+    } finally { setSigSaving(false); }
+  };
+
+  const handleClearSig = async () => {
+    setMySig(null);
+    await api.patch("/users/me/signature", { signature_data: null }).catch(() => {});
+  };
 
   const field = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
@@ -510,6 +545,59 @@ function UsersTab() {
 
   return (
     <div className="flex flex-col gap-4">
+
+      {/* ── My Profile Card ── */}
+      <div className="p-4 rounded-xl" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+        <div className="text-[13px] font-semibold mb-3" style={{ color: C.textPrimary }}>My Profile</div>
+        <div className="flex items-start gap-6">
+          <div className="flex-1">
+            <div className="text-[14px] font-semibold" style={{ color: C.textPrimary }}>{me?.name}</div>
+            <div className="text-[12px] mt-0.5" style={{ color: C.textMuted }}>{me?.email}</div>
+            <div className="mt-2"><Badge value={me?.role} /></div>
+          </div>
+          <div className="flex flex-col gap-2" style={{ minWidth: 220 }}>
+            <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: C.textMuted }}>Invoice Signature</div>
+            <div
+              className="rounded-lg flex items-center justify-center overflow-hidden"
+              style={{ height: 72, background: C.bg, border: `1px solid ${C.border}` }}
+            >
+              {mySig
+                ? <img src={mySig} alt="Signature" style={{ maxHeight: 62, maxWidth: "100%", objectFit: "contain" }} />
+                : <span className="text-[11px]" style={{ color: C.textMuted }}>No signature uploaded</span>
+              }
+            </div>
+            <div className="flex gap-2">
+              <input ref={sigInputRef} type="file" accept="image/*" className="hidden" onChange={handleSigUpload} />
+              <button
+                type="button"
+                onClick={() => sigInputRef.current?.click()}
+                className="flex-1 flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded-lg"
+                style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.textMuted }}
+              >
+                <Upload size={11} /> Upload
+              </button>
+              {mySig && (
+                <button
+                  type="button"
+                  onClick={handleSaveSig}
+                  disabled={sigSaving}
+                  className="flex-1 flex items-center justify-center text-[11px] px-2 py-1.5 rounded-lg disabled:opacity-50"
+                  style={{ background: C.green, color: "#fff" }}
+                >
+                  {sigSaved ? "Saved!" : sigSaving ? "Saving…" : "Save"}
+                </button>
+              )}
+              {mySig && (
+                <button type="button" onClick={handleClearSig} style={{ color: C.red }}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <p className="text-[10px]" style={{ color: C.textMuted }}>Used as Authorized Signatory on Tax Invoices</p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
         <p className="text-[12px]" style={{ color: C.textMuted }}>Invite team members and manage their access.</p>
         <Button onClick={() => { setForm(EMPTY_USER); setModal("invite"); }}>
@@ -554,6 +642,211 @@ function UsersTab() {
   );
 }
 
+// ─── Company Tab ─────────────────────────────────────────────────────────────
+
+const EMPTY_COMPANY = {
+  legal_name: "", address: "", state: "", state_code: "", pin_code: "",
+  gstin: "", email: "", phone: "", website: "",
+  bank_account_name: "", bank_name: "", account_number: "", ifsc_code: "",
+  payment_instructions: "", default_payment_terms: "",
+  signatory_name: "", signatory_designation: "", logo_data: "", seal_data: "",
+};
+
+function SectionHeading({ children }) {
+  return (
+    <div className="text-[11px] font-semibold uppercase tracking-widest pt-2" style={{ color: C.textMuted }}>
+      {children}
+    </div>
+  );
+}
+
+function CompanyTab() {
+  const [form, setForm]     = useState(EMPTY_COMPANY);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving]  = useState(false);
+  const [saved, setSaved]    = useState(false);
+  const logoInputRef         = useRef(null);
+  const sealInputRef         = useRef(null);
+
+  useEffect(() => {
+    api.get("/settings/company")
+      .then((r) => setForm({ ...EMPTY_COMPANY, ...r.data }))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const field = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const handleLogoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert("Logo must be under 2 MB"); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => setForm((f) => ({ ...f, logo_data: ev.target.result }));
+    reader.readAsDataURL(file);
+  };
+
+  const handleSealUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert("Seal must be under 2 MB"); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => setForm((f) => ({ ...f, seal_data: ev.target.result }));
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const { data } = await api.put("/settings/company", form);
+      setForm({ ...EMPTY_COMPANY, ...data });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      alert(err.response?.data?.error || "Error saving company settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16">
+        <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: C.green, borderTopColor: "transparent" }} />
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSave} className="flex flex-col gap-5 max-w-2xl">
+      <div>
+        <h2 className="text-[15px] font-semibold mb-0.5" style={{ color: C.textPrimary }}>Company Configuration</h2>
+        <p className="text-[12px]" style={{ color: C.textMuted }}>These details appear on all generated invoices.</p>
+      </div>
+
+      {/* Logo */}
+      <div className="flex flex-col gap-2">
+        <SectionHeading>Company Logo</SectionHeading>
+        <div className="flex items-center gap-4">
+          {form.logo_data ? (
+            <img src={form.logo_data} alt="Logo" className="h-16 w-auto rounded-lg object-contain" style={{ border: `1px solid ${C.border}`, background: C.card, padding: 6 }} />
+          ) : (
+            <div className="h-16 w-24 rounded-lg flex items-center justify-center" style={{ border: `1px dashed ${C.border}`, background: C.card }}>
+              <Building2 size={24} style={{ color: C.textMuted }} />
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+            <Button type="button" variant="secondary" onClick={() => logoInputRef.current?.click()}>
+              <span className="flex items-center gap-1.5"><Upload size={13} /> {form.logo_data ? "Change Logo" : "Upload Logo"}</span>
+            </Button>
+            {form.logo_data && (
+              <button type="button" className="text-[11px] hover:underline text-left" style={{ color: C.red }} onClick={() => setForm((f) => ({ ...f, logo_data: "" }))}>
+                Remove
+              </button>
+            )}
+            <span className="text-[11px]" style={{ color: C.textMuted }}>Max 2 MB · PNG, JPG, SVG</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Business Identity */}
+      <div className="flex flex-col gap-3">
+        <SectionHeading>Business Identity</SectionHeading>
+        <Input label="Legal Business Name" value={form.legal_name} onChange={field("legal_name")} placeholder="e.g. Sixmend Technologies" />
+        <Input label="GSTIN" value={form.gstin} onChange={field("gstin")} placeholder="e.g. 32AABCS1234A1Z5" />
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2">
+            <Input label="State" value={form.state} onChange={field("state")} placeholder="e.g. Kerala" />
+          </div>
+          <Input label="State Code" value={form.state_code} onChange={field("state_code")} placeholder="e.g. 32" />
+        </div>
+      </div>
+
+      {/* Address */}
+      <div className="flex flex-col gap-3">
+        <SectionHeading>Registered Address</SectionHeading>
+        <Textarea label="Address" value={form.address} onChange={field("address")} placeholder="Street, Building, Area" rows={2} />
+        <Input label="PIN Code" value={form.pin_code} onChange={field("pin_code")} placeholder="e.g. 682001" />
+      </div>
+
+      {/* Contact */}
+      <div className="flex flex-col gap-3">
+        <SectionHeading>Contact Details</SectionHeading>
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Business Email" type="email" value={form.email} onChange={field("email")} placeholder="info@sixmend.com" />
+          <Input label="Contact Number" value={form.phone} onChange={field("phone")} placeholder="+91 00000 00000" />
+        </div>
+        <Input label="Website" value={form.website} onChange={field("website")} placeholder="www.sixmend.com" />
+      </div>
+
+      {/* Bank Details */}
+      <div className="flex flex-col gap-3">
+        <SectionHeading>Bank Account Details</SectionHeading>
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Account Name" value={form.bank_account_name} onChange={field("bank_account_name")} placeholder="Sixmend Technologies" />
+          <Input label="Bank Name" value={form.bank_name} onChange={field("bank_name")} placeholder="e.g. HDFC Bank" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Account Number" value={form.account_number} onChange={field("account_number")} placeholder="0000000000" />
+          <Input label="IFSC Code" value={form.ifsc_code} onChange={field("ifsc_code")} placeholder="HDFC0001234" />
+        </div>
+        <Textarea label="Payment Instructions" value={form.payment_instructions} onChange={field("payment_instructions")} placeholder="Additional payment instructions shown on invoices…" rows={2} />
+      </div>
+
+      {/* Invoice Defaults */}
+      <div className="flex flex-col gap-3">
+        <SectionHeading>Invoice Defaults</SectionHeading>
+        <Textarea label="Default Payment Terms" value={form.default_payment_terms} onChange={field("default_payment_terms")} placeholder="e.g. Payment due within 30 days of invoice date." rows={2} />
+      </div>
+
+      {/* Signatory */}
+      <div className="flex flex-col gap-3">
+        <SectionHeading>Authorised Signatory</SectionHeading>
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Signatory Name" value={form.signatory_name} onChange={field("signatory_name")} placeholder="e.g. Arun Kumar" />
+          <Input label="Designation" value={form.signatory_designation} onChange={field("signatory_designation")} placeholder="e.g. Managing Director" />
+        </div>
+      </div>
+
+      {/* Company Seal */}
+      <div className="flex flex-col gap-2">
+        <SectionHeading>Company Seal</SectionHeading>
+        <p className="text-[11px]" style={{ color: C.textMuted }}>Appears next to the signature on Tax Invoices. Use a transparent PNG for best results.</p>
+        <div className="flex items-center gap-4">
+          {form.seal_data ? (
+            <div className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden" style={{ border: `1px solid ${C.border}`, background: C.card }}>
+              <img src={form.seal_data} alt="Seal" className="w-full h-full object-contain p-1" />
+            </div>
+          ) : (
+            <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ border: `2px dashed ${C.border}`, background: C.card }}>
+              <Building2 size={22} style={{ color: C.textMuted }} />
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <input ref={sealInputRef} type="file" accept="image/*" className="hidden" onChange={handleSealUpload} />
+            <Button type="button" variant="secondary" onClick={() => sealInputRef.current?.click()}>
+              <span className="flex items-center gap-1.5"><Upload size={13} /> {form.seal_data ? "Change Seal" : "Upload Seal"}</span>
+            </Button>
+            {form.seal_data && (
+              <button type="button" className="text-[11px] hover:underline text-left" style={{ color: C.red }} onClick={() => setForm((f) => ({ ...f, seal_data: "" }))}>
+                Remove
+              </button>
+            )}
+            <span className="text-[11px]" style={{ color: C.textMuted }}>Max 2 MB · PNG (transparent recommended)</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 pt-1">
+        <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save Changes"}</Button>
+        {saved && <span className="text-[12px]" style={{ color: C.green }}>Saved successfully</span>}
+      </div>
+    </form>
+  );
+}
+
 // ─── Main Settings Page ───────────────────────────────────────────────────────
 
 export default function Settings() {
@@ -581,9 +874,10 @@ export default function Settings() {
       </div>
 
       <div>
-        {activeTab === "users" && <UsersTab />}
+        {activeTab === "users"      && <UsersTab />}
         {activeTab === "appearance" && <AppearanceTab />}
-        {activeTab === "fields" && <FieldUpdateTab />}
+        {activeTab === "fields"     && <FieldUpdateTab />}
+        {activeTab === "company"    && <CompanyTab />}
       </div>
     </div>
   );
