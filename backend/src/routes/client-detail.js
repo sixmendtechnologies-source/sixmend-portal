@@ -158,13 +158,6 @@ router.post("/payments/:paymentId/invoice", requireAuth, async (req, res) => {
 
 router.post("/final-invoice", requireAuth, async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      "SELECT COUNT(*) FROM client_payments WHERE client_id=$1 AND status='paid'",
-      [req.params.id]
-    );
-    if (parseInt(rows[0].count) === 0) {
-      return res.status(400).json({ error: "No paid payments found for this client" });
-    }
     const activeCheck = await pool.query(
       "SELECT invoice_number FROM client_tax_invoices WHERE client_id=$1 AND status='active'",
       [req.params.id]
