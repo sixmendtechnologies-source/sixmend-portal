@@ -66,8 +66,8 @@ function amountInWords(amount) {
   const val = parseFloat(amount) || 0;
   const rupees = Math.floor(val);
   const paise = Math.round((val - rupees) * 100);
-  if (rupees === 0 && paise === 0) return "Indian Rupees Zero Only";
-  let words = "Indian Rupees " + toWords(rupees).trim();
+  if (rupees === 0 && paise === 0) return "Zero Only";
+  let words = toWords(rupees).trim();
   if (paise > 0) words += " and " + toWords(paise).trim() + " Paise";
   return words + " Only";
 }
