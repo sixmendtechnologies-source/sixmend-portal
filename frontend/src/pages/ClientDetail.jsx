@@ -63,9 +63,13 @@ function amountInWords(amount) {
     if (n < 10000000) return toWords(Math.floor(n / 100000)) + "Lakh " + toWords(n % 100000);
     return toWords(Math.floor(n / 10000000)) + "Crore " + toWords(n % 10000000);
   }
-  const n = Math.round(parseFloat(amount) || 0);
-  if (n === 0) return "Indian Rupees Zero Only";
-  return "Indian Rupees " + toWords(n).trim() + " Only";
+  const val = parseFloat(amount) || 0;
+  const rupees = Math.floor(val);
+  const paise = Math.round((val - rupees) * 100);
+  if (rupees === 0 && paise === 0) return "Indian Rupees Zero Only";
+  let words = "Indian Rupees " + toWords(rupees).trim();
+  if (paise > 0) words += " and " + toWords(paise).trim() + " Paise";
+  return words + " Only";
 }
 
 function inr(n) {
