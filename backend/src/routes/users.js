@@ -103,6 +103,29 @@ router.patch("/:id/reinvite", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+router.patch("/:id/reset-password", requireAuth, requireAdmin, async (req, res) => {
+  if (parseInt(req.params.id) === req.user.id) {
+    return res.status(400).json({ error: "Cannot reset your own password from here" });
+  }
+  try {
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const { rows } = await pool.query(
+      `UPDATE users SET invite_token=$1, invite_expires_at=$2, status='invited'
+       WHERE id=$3 RETURNING name, email`,
+      [token, expires, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Not found" });
+
+    await sendActivationEmail({ to: rows[0].email, name: rows[0].name, token });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 router.get("/me", requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(

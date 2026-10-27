@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Plus, Trash2, RefreshCw, UserX, UserCheck,
+  Plus, Trash2, RefreshCw, UserX, UserCheck, KeyRound,
   Users, Palette, Sun, Moon, Sliders, Pencil, X, Building2, Upload,
 } from "lucide-react";
 import api from "../utils/api";
@@ -403,6 +403,7 @@ function UsersTab() {
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [reinviteId, setReinviteId] = useState(null);
+  const [resetId, setResetId] = useState(null);
 
   const sigInputRef = useRef(null);
   const [mySig, setMySig] = useState(null);
@@ -464,6 +465,18 @@ function UsersTab() {
     finally { setReinviteId(null); }
   };
 
+  const handleResetPassword = async (id, name) => {
+    if (!window.confirm(`Send a password reset link to ${name}? They will be logged out until they set a new password.`)) return;
+    setResetId(id);
+    try {
+      await api.patch(`/users/${id}/reset-password`);
+      alert("Password reset link sent. The user must click the link in their email to set a new password.");
+      fetchUsers();
+    } catch (err) {
+      alert(err.response?.data?.error || "Error sending reset link");
+    } finally { setResetId(null); }
+  };
+
   const handleRole = async (id, role) => {
     try {
       const r = await api.patch(`/users/${id}/role`, { role });
@@ -518,6 +531,13 @@ function UsersTab() {
                 className="flex items-center gap-1 text-[11px] px-2 py-1 rounded disabled:opacity-50"
                 style={{ color: C.orange, background: "var(--badge-orange-bg)" }}>
                 <RefreshCw size={11} />{reinviteId === row.id ? "Sending…" : "Resend"}
+              </button>
+            )}
+            {!isSelf && (
+              <button onClick={() => handleResetPassword(row.id, row.name)} disabled={resetId === row.id}
+                className="flex items-center gap-1 text-[11px] px-2 py-1 rounded disabled:opacity-50"
+                style={{ color: C.blue, background: "var(--badge-blue-bg, #dbeafe)" }}>
+                <KeyRound size={11} />{resetId === row.id ? "Sending…" : "Reset Password"}
               </button>
             )}
             {!isSelf && row.status === "active" && (

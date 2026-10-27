@@ -262,7 +262,20 @@ ${(co.signatory_name || co.signatory_designation) ? `<div style="margin-bottom:2
 
 // ─── Tax Invoice HTML Generator ───────────────────────────────────────────────
 
-function buildFinalInvoiceHTML(client, paidPayments, form, logoBase64, co = {}, invoiceUser = null, sigBase64 = null, baseUrl = "") {
+async function fetchLogoBase64(baseUrl) {
+  try {
+    const resp = await fetch(`${baseUrl}/sixmend-logo.png`);
+    if (!resp.ok) return "";
+    const blob = await resp.blob();
+    return await new Promise(resolve => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.readAsDataURL(blob);
+    });
+  } catch { return ""; }
+}
+
+function buildFinalInvoiceHTML(client, paidPayments, form, logoBase64, co = {}, invoiceUser = null, sigBase64 = null, baseUrl = "", sixmendLogoSrc = "") {
   const lineItems  = (form.items || []).filter(item => item.description || parseFloat(item.rate || item.amount || 0) > 0);
   const withCalc   = lineItems.map(item => {
     const qty     = parseFloat(item.qty || 1);
@@ -333,7 +346,7 @@ table{border-collapse:collapse;width:100%}
 <!-- HEADER -->
 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;border-bottom:3px solid ${B};padding-bottom:16px">
   <div style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0">
-    <img src="${baseUrl}/sixmend-logo.png" alt="Sixmend Technologies"
+    <img src="${sixmendLogoSrc || baseUrl + '/sixmend-logo.png'}" alt="Sixmend Technologies"
      style="height:86px;width:auto;max-width:305px;object-fit:contain;object-position:left center;display:block;margin:0 0 0 -11px"
      onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
     <span style="display:none;font-size:30px;font-weight:800;letter-spacing:.04em;color:${B}">${(co.legal_name || "SIXMEND").toUpperCase()}</span>
@@ -854,7 +867,8 @@ export default function ClientDetail() {
       if (freshCo.logo_data) freshLogo = freshCo.logo_data;
       freshSig = userRes.data.signature_data || null;
     } catch {}
-    const html = buildFinalInvoiceHTML(client, paidPayments, finalInvForm, freshLogo, freshCo, user, freshSig, window.location.origin);
+    const sixmendLogo = await fetchLogoBase64(window.location.origin);
+    const html = buildFinalInvoiceHTML(client, paidPayments, finalInvForm, freshLogo, freshCo, user, freshSig, window.location.origin, sixmendLogo);
     const win = window.open("", "_blank", "width=900,height=1000");
     win.document.write(html);
     win.document.close();
@@ -916,7 +930,8 @@ export default function ClientDetail() {
       notes: "",
     };
     const paidPayments = payments.filter((p) => p.status === "paid");
-    const html = buildFinalInvoiceHTML(freshClient, paidPayments, form, freshLogo, freshCo, user, freshSig, window.location.origin);
+    const sixmendLogo = await fetchLogoBase64(window.location.origin);
+    const html = buildFinalInvoiceHTML(freshClient, paidPayments, form, freshLogo, freshCo, user, freshSig, window.location.origin, sixmendLogo);
     const win = window.open("", "_blank", "width=900,height=1000");
     win.document.write(html);
     win.document.close();
