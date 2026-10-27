@@ -787,10 +787,6 @@ export default function ClientDetail() {
 
   const openFinalInvoice = async () => {
     const paidPayments = payments.filter((p) => p.status === "paid");
-    if (paidPayments.length === 0) {
-      alert("No paid payments found. Mark at least one payment as paid before generating a tax invoice.");
-      return;
-    }
     try {
       const [settingsRes, userRes, taxInvRes] = await Promise.all([
         api.get("/settings/company"),
