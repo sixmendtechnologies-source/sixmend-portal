@@ -818,41 +818,41 @@ export default function ClientDetail() {
         return;
       }
     } catch {}
-    try {
-      const { data } = await api.post(`/clients/${id}/final-invoice`);
-      const today = new Date();
-      const dueDate = new Date(today);
-      dueDate.setDate(dueDate.getDate() + 30);
-      setFinalInvForm({
-        number: data.invoice_number,
-        date: today.toISOString().split("T")[0],
-        due_date: dueDate.toISOString().split("T")[0],
-        po_number: "",
-        items: Array.isArray(client.project_items) && client.project_items.length
-          ? client.project_items.map(it => ({ description: it.description || "", hsn: it.hsn || "", qty: String(it.qty || "1"), rate: String(it.rate || it.amount || "") }))
-          : [{ description: `Software Development, Implementation & Deployment for ${client.company || client.name}`, hsn: "", qty: "1", rate: String(client.total_value || "") }],
-        project_name: client.company || client.name || "",
-        project_status: "Completed",
-        handover_date: today.toISOString().split("T")[0],
-        place_of_supply: client.state ? `${client.state}${client.state_code ? ` (${client.state_code})` : ""}` : "",
-        tax_rate: client.project_gst != null ? String(client.project_gst) : "0",
-        payment_terms: companyCfg.default_payment_terms ||
-          "• Balance payable on completion and handover, unless agreed otherwise in writing.\n• Pay by bank transfer or UPI and quote the invoice number.",
-        notes: "",
-      });
-      setFinalInvModal(true);
-    } catch (err) {
-      alert(err.response?.data?.error || "Error generating tax invoice");
-    }
+    const today = new Date();
+    const dueDate = new Date(today);
+    dueDate.setDate(dueDate.getDate() + 30);
+    setFinalInvForm({
+      number: "",
+      date: today.toISOString().split("T")[0],
+      due_date: dueDate.toISOString().split("T")[0],
+      po_number: "",
+      items: Array.isArray(client.project_items) && client.project_items.length
+        ? client.project_items.map(it => ({ description: it.description || "", hsn: it.hsn || "", qty: String(it.qty || "1"), rate: String(it.rate || it.amount || "") }))
+        : [{ description: `Software Development, Implementation & Deployment for ${client.company || client.name}`, hsn: "", qty: "1", rate: String(client.total_value || "") }],
+      project_name: client.company || client.name || "",
+      project_status: "Completed",
+      handover_date: today.toISOString().split("T")[0],
+      place_of_supply: client.state ? `${client.state}${client.state_code ? ` (${client.state_code})` : ""}` : "",
+      tax_rate: client.project_gst != null ? String(client.project_gst) : "0",
+      payment_terms: companyCfg.default_payment_terms ||
+        "• Balance payable on completion and handover, unless agreed otherwise in writing.\n• Pay by bank transfer or UPI and quote the invoice number.",
+      notes: "",
+    });
+    setFinalInvModal(true);
   };
 
   const handlePrintFinalInvoice = async () => {
-    const isCancelled = taxInvoices.some(
-      (inv) => inv.invoice_number === finalInvForm.number && inv.status === "cancelled"
-    );
-    if (isCancelled) {
-      alert(`Invoice ${finalInvForm.number} was cancelled. Close this modal and generate a new invoice.`);
-      return;
+    // Generate invoice number now (only when actually printing)
+    let invoiceNumber = finalInvForm.number;
+    if (!invoiceNumber) {
+      try {
+        const { data } = await api.post(`/clients/${id}/final-invoice`);
+        invoiceNumber = data.invoice_number;
+        setFinalInvForm(prev => ({ ...prev, number: invoiceNumber }));
+      } catch (err) {
+        alert(err.response?.data?.error || "Error generating invoice number");
+        return;
+      }
     }
     const paidPayments = payments.filter((p) => p.status === "paid");
     let freshLogo = logoBase64;
@@ -868,7 +868,7 @@ export default function ClientDetail() {
       freshSig = userRes.data.signature_data || null;
     } catch {}
     const sixmendLogo = await fetchLogoBase64(window.location.origin);
-    const html = buildFinalInvoiceHTML(client, paidPayments, finalInvForm, freshLogo, freshCo, user, freshSig, window.location.origin, sixmendLogo);
+    const html = buildFinalInvoiceHTML(client, paidPayments, { ...finalInvForm, number: invoiceNumber }, freshLogo, freshCo, user, freshSig, window.location.origin, sixmendLogo);
     const win = window.open("", "_blank", "width=900,height=1000");
     win.document.write(html);
     win.document.close();
@@ -879,7 +879,7 @@ export default function ClientDetail() {
     const total = subtotal + subtotal * taxRateN / 100;
     try {
       await api.post(`/clients/${id}/tax-invoices`, {
-        invoice_number: finalInvForm.number,
+        invoice_number: invoiceNumber,
         invoice_date: finalInvForm.date,
         total_amount: total,
       });
